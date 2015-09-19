@@ -49,3 +49,6 @@ lost+found
 # ignore ./contrib/gcc_update output
 LAST_UPDATED
 REVISION
+
+tags
+.vimrc
