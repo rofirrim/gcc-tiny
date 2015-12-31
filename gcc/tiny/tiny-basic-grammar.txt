@@ -1,0 +1,64 @@
+Grammar for Tiny Imperative Language (TIL)
+==========================================
+
+Based on the grammar in
+
+   http://www.program-transformation.org/Sts/TinyImperativeLanguage
+
+
+Grammar
+-------
+
+program -> statement*
+
+statement ->  declaration
+           |  assignment_statement
+           |  if_statement
+           |  while_statement
+           |  for_statement
+           |  read_statement
+           |  write_statement
+
+% Variables
+declaration -> "var" identifier ":" type ";"
+
+type -> "int"
+      | "real"
+
+assignment_statement -> identifier ":=" expression ";"
+
+if_statement -> "if" expression "then" 
+                    statement* 
+                "end"
+             |  "if" expression "then" 
+                    statement* 
+                "else" 
+                    statement* 
+                "end"
+
+% While loop 
+while_statement -> "while" expression "do"
+                      statement* 
+                   "end"
+
+% Declaring for
+for_statement -> "for"  identifier ":=" expression "to" expression "do"
+                     statement*
+                 "end"
+
+read_statement -> "read" identifier ";"
+
+write_statement -> "write" expression ";"
+
+% Simple 
+expression -> primary
+           |  expression op expression
+
+primary -> identifier
+        |  integer
+        |  string
+        |  "(" expression ")"
+
+op -> "=" | "!="        % lowest priority       
+   |  "+" | "-"
+   |  "*" | "/"         % highest priority

@@ -1,0 +1,21 @@
+GCC Tiny Frontend
+-----------------
+
+This is an illustrative frontend for the Tiny Imperative Language (TIL)
+
+The aim of this frontend is just to showcase how a front end can be implemented
+in GCC. TIL is an extremely simple language. See the basic syntax in
+tiny-basic-grammar.txt.
+
+The interesting bits are all in <top-level>/gcc/tiny.
+
+Goals:
+  - be a front end example that can be understood and extended by a single developer
+
+  Rationale: It may be tempting to attempt to start with other GCC frontends, but
+    since they are production-grade their code is production-grade too, so it can
+    be intimidating for newcomers.
+
+Non-goals:
+
+  - be production-grade
