@@ -52,13 +52,18 @@ write_statement -> "write" expression ";"
 
 % Simple 
 expression -> primary
-           |  expression op expression
+           |  unop op expression
+           |  expression binop expression
 
 primary -> identifier
         |  integer
         |  string
         |  "(" expression ")"
 
-op -> "=" | "!="        % lowest priority       
-   |  "+" | "-"
-   |  "*" | "/"         % highest priority
+unop -> not                                           % lowest priority
+     |  "+" | "-"                                     % highest priority
+
+binop ->  "and" | "or"                                % lowest priority
+       |  "=" | "!=" | "<" | "<=" | ">" | ">="
+       |  "+" | "-"
+       |  "*" | "/"  | "%"                            % highest priority
