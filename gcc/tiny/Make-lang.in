@@ -62,6 +62,10 @@ TINY_OBJS = \
     tiny/tiny1.o \
     tiny/tiny-parser.o \
     tiny/tiny-lexer.o \
+    tiny/tiny-symbol.o \
+    tiny/tiny-scope.o \
+    tiny/tiny-context.o \
+    tiny/tiny-convert.o \
     $(END)
 
 tiny1$(exeext): $(TINY_OBJS) $(BACKEND) $(LIBDEPS)
