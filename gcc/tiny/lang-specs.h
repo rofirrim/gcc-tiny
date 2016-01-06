@@ -18,4 +18,4 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 {".tiny",  "@tiny", 0, 1, 0},
-{"@tiny",  "tiny1 %i %{!Q:-quiet} %(cc1_options) %{!fsyntax-only:%(invoke_as)}", 0, 1, 0},
+{"@tiny",  "tiny1 %i %(cc1_options) %{!fsyntax-only:%(invoke_as)}", 0, 1, 0},
