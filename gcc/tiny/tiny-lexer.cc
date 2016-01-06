@@ -225,7 +225,7 @@ Lexer::build_token ()
 	case ';':
 	  current_column++;
 	  return Token::make (SEMICOLON, loc);
-        case '<':
+	case '<':
 	  if (peek_input () == '=')
 	    {
 	      get_input ();
@@ -233,13 +233,13 @@ Lexer::build_token ()
 
 	      return Token::make (LOWER_OR_EQUAL, loc);
 	    }
-          else
-            {
-              current_column++;
+	  else
+	    {
+	      current_column++;
 	      return Token::make (LOWER, loc);
-            }
-          break;
-        case '>':
+	    }
+	  break;
+	case '>':
 	  if (peek_input () == '=')
 	    {
 	      get_input ();
@@ -247,29 +247,29 @@ Lexer::build_token ()
 
 	      return Token::make (GREATER_OR_EQUAL, loc);
 	    }
-          else
-            {
-              current_column++;
+	  else
+	    {
+	      current_column++;
 	      return Token::make (GREATER, loc);
-            }
-          break;
+	    }
+	  break;
 	case '/':
 	  current_column++;
 	  return Token::make (SLASH, loc);
-        case '%':
+	case '%':
 	  current_column++;
 	  return Token::make (PERCENT, loc);
-        case '#': /* comment */
-          current_column++;
+	case '#': /* comment */
+	  current_column++;
 	  current_char = peek_input ();
 	  while (current_char != '\n')
 	    {
 	      get_input ();
-              current_column++; // won't be used
+	      current_column++; // won't be used
 	      current_char = peek_input ();
-            }
-          continue;
-          break;
+	    }
+	  continue;
+	  break;
 	}
 
       // ***************************
