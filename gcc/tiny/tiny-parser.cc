@@ -104,15 +104,19 @@ private:
 
   tree parse_expression (int right_binding_power);
 
-  tree coerce_binary_arithmetic (const Token* tok, tree *left, tree *right);
-  bool check_logical_operands(const Token* tok, tree left, tree right);
+  tree coerce_binary_arithmetic (const Token *tok, tree *left, tree *right);
+  bool check_logical_operands (const Token *tok, tree left, tree right);
 
   tree get_printf_addr ();
   tree get_puts_addr ();
 
   tree get_scanf_addr ();
 
-  tree build_label_decl(location_t loc, const char*);
+  tree build_label_decl (const char *name, location_t loc);
+  tree build_if_statement (tree bool_expr, tree then_part, tree else_part);
+  tree build_while_statement (tree bool_expr, tree while_body);
+  tree build_for_statement (Symbol *ind_var, tree lower_bound, tree upper_bound,
+			    tree for_body_stmt_list);
 
   const char *print_type (tree type);
 
@@ -123,33 +127,37 @@ private:
   void enter_scope ();
   tree leave_scope (tree &new_block);
 
+  Symbol *query_variable (const std::string &name, location_t loc);
+  Symbol *query_integer_variable (const std::string &name, location_t loc);
+
   void parse_statement_seq (bool (Parser::*done) ());
 
   bool done_end ();
   bool done_end_or_else ();
   bool done_end_of_file ();
 
-  typedef tree (Parser::*BinaryHandler)(const Token*, tree);
-  BinaryHandler get_binary_handler(TokenId id);
+  typedef tree (Parser::*BinaryHandler) (const Token *, tree);
+  BinaryHandler get_binary_handler (TokenId id);
 
-#define BINARY_HANDLER_LIST \
-  BINARY_HANDLER(plus, PLUS) \
-  BINARY_HANDLER(minus, MINUS) \
-  BINARY_HANDLER(mult, ASTERISK) \
-  BINARY_HANDLER(div, SLASH) \
-  BINARY_HANDLER(mod, PERCENT) \
-  \
-  BINARY_HANDLER(equal, EQUAL) \
-  BINARY_HANDLER(different, DIFFERENT) \
-  BINARY_HANDLER(lower_than, LOWER) \
-  BINARY_HANDLER(lower_equal, LOWER_OR_EQUAL) \
-  BINARY_HANDLER(greater_than, GREATER) \
-  BINARY_HANDLER(greater_equal, GREATER_OR_EQUAL) \
-  \
-  BINARY_HANDLER(logical_and, AND) \
-  BINARY_HANDLER(logical_or, OR)
+#define BINARY_HANDLER_LIST                                                    \
+  BINARY_HANDLER (plus, PLUS)                                                  \
+  BINARY_HANDLER (minus, MINUS)                                                \
+  BINARY_HANDLER (mult, ASTERISK)                                              \
+  BINARY_HANDLER (div, SLASH)                                                  \
+  BINARY_HANDLER (mod, PERCENT)                                                \
+                                                                               \
+  BINARY_HANDLER (equal, EQUAL)                                                \
+  BINARY_HANDLER (different, DIFFERENT)                                        \
+  BINARY_HANDLER (lower_than, LOWER)                                           \
+  BINARY_HANDLER (lower_equal, LOWER_OR_EQUAL)                                 \
+  BINARY_HANDLER (greater_than, GREATER)                                       \
+  BINARY_HANDLER (greater_equal, GREATER_OR_EQUAL)                             \
+                                                                               \
+  BINARY_HANDLER (logical_and, AND)                                            \
+  BINARY_HANDLER (logical_or, OR)
 
-#define BINARY_HANDLER(name, _) tree binary_##name(const Token* tok, tree left);
+#define BINARY_HANDLER(name, _)                                                \
+  tree binary_##name (const Token *tok, tree left);
   BINARY_HANDLER_LIST
 #undef BINARY_HANDLER
 
@@ -177,6 +185,7 @@ public:
 
   tree parse_expression ();
   tree parse_boolean_expression ();
+  tree parse_integer_expression ();
 
 private:
   Lexer &lexer;
@@ -257,21 +266,21 @@ Parser::unexpected_token (const Token *t)
 void
 Parser::parse_program ()
 {
-  // built type of main "int (int, char**)"
+  // Built type of main "int (int, char**)"
   tree main_fndecl_type_param[] = {
     integer_type_node,					     /* int */
     build_pointer_type (build_pointer_type (char_type_node)) /* char** */
   };
   tree main_fndecl_type
     = build_function_type_array (integer_type_node, 2, main_fndecl_type_param);
-  // create function declaration "int main(int, char**)"
+  // Create function declaration "int main(int, char**)"
   main_fndecl = build_fn_decl ("main", main_fndecl_type);
 
-  // enter top level scope
+  // Enter top level scope
   enter_scope ();
   // program -> statement*
   parse_statement_seq (&Parser::done_end_of_file);
-  // append "return 0;"
+  // Append "return 0;"
   tree resdecl
     = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, integer_type_node);
   DECL_RESULT (main_fndecl) = resdecl;
@@ -281,11 +290,11 @@ Parser::parse_program ()
   tree return_stmt = build1 (RETURN_EXPR, void_type_node, set_result);
   append_to_statement_list (return_stmt, &get_current_stmt_list ());
 
-  // leave top level scope, get its binding expression and its main block
+  // Leave top level scope, get its binding expression and its main block
   tree main_block = NULL_TREE;
   tree main_bind_expr = leave_scope (main_block);
 
-  // finish main function
+  // Finish main function
   BLOCK_SUPERCONTEXT (main_block) = main_fndecl;
   DECL_INITIAL (main_fndecl) = main_block;
   DECL_SAVED_TREE (main_fndecl) = main_bind_expr;
@@ -293,10 +302,10 @@ Parser::parse_program ()
   DECL_EXTERNAL (main_fndecl) = 0;
   DECL_PRESERVE_P (main_fndecl) = 1;
 
-  // convert from GENERIC to GIMPLE
+  // Convert from GENERIC to GIMPLE
   gimplify_function_tree (main_fndecl);
 
-  // insert it into the graph
+  // Insert it into the graph
   cgraph_node::finalize_function (main_fndecl, true);
 
   main_fndecl = NULL_TREE;
@@ -309,8 +318,6 @@ Parser::done_end_of_file ()
   bool done = false;
   if (t->get_id () == Tiny::END_OF_FILE)
     {
-      // Consume the token
-      lexer.get_token ();
       done = true;
     }
 
@@ -322,10 +329,9 @@ Parser::done_end ()
 {
   const Token *t = lexer.peek_token ();
   bool done = false;
-  if (t->get_id () == Tiny::END)
+  if (t->get_id () == Tiny::END
+          || t->get_id() == Tiny::END_OF_FILE)
     {
-      // Consume the token
-      lexer.get_token ();
       done = true;
     }
 
@@ -338,9 +344,9 @@ Parser::done_end_or_else ()
   const Token *t = lexer.peek_token ();
   bool done = false;
   if (t->get_id () == Tiny::END
-      || t->get_id() == Tiny::ELSE)
+      || t->get_id() == Tiny::ELSE
+      || t->get_id() == Tiny::END_OF_FILE)
     {
-      // We do not consume the token here!
       done = true;
     }
 
@@ -350,7 +356,7 @@ Parser::done_end_or_else ()
 void
 Parser::parse_statement_seq (bool (Parser::*done) ())
 {
-  // parse statements until done and append to the current stmt list
+  // Parse statements until done and append to the current stmt list
   while (!(this->*done) ())
     {
       tree stmt = parse_statement ();
@@ -385,13 +391,13 @@ Parser::leave_scope (tree &new_block)
   new_block = build_block (var_decl_chain.first, subblocks.first,
 			   /* supercontext */ NULL_TREE, /* chain */ NULL_TREE);
 
-  // add the new block to the current chain of blocks (if any)
+  // Add the new block to the current chain of blocks (if any)
   if (!stack_block_chain.empty ())
     {
       stack_block_chain.back ().append (new_block);
     }
 
-  // set the subblocks to have the new block as their parent
+  // Set the subblocks to have the new block as their parent
   for (tree it = subblocks.first; it != NULL_TREE; it = BLOCK_CHAIN (it))
     BLOCK_SUPERCONTEXT (it) = new_block;
 
@@ -574,6 +580,38 @@ Parser::parse_type ()
     }
 }
 
+Symbol* Parser::query_variable(const std::string& name, location_t loc)
+{
+  Symbol *sym = context.scope ().query (name);
+  if (sym == NULL)
+    {
+      error_at (loc,
+		"variable '%s' not declared in the current scope",
+		name.c_str());
+    }
+  return sym;
+}
+
+Symbol *
+Parser::query_integer_variable (const std::string &name, location_t loc)
+{
+  Symbol *sym = query_variable (name, loc);
+  if (sym != NULL)
+    {
+      tree var_decl = sym->get_tree_decl ();
+      gcc_assert (var_decl != NULL_TREE);
+
+      if (TREE_TYPE (var_decl) != integer_type_node)
+	{
+	  error_at (loc, "variable '%s' does not have integer type",
+		    name.c_str ());
+	  sym = NULL;
+	}
+    }
+
+  return sym;
+}
+
 tree
 Parser::parse_assignment_statement ()
 {
@@ -585,15 +623,13 @@ Parser::parse_assignment_statement ()
       return error_mark_node;
     }
 
-  Symbol *sym = context.scope ().query (identifier->get_str ());
+  Symbol *sym = query_variable(identifier->get_str(), identifier->get_locus());
   if (sym == NULL)
     {
-      error_at (identifier->get_locus (),
-		"variable '%s' not declared in the current scope",
-		identifier->get_str ().c_str ());
       skip_after_semicolon ();
       return error_mark_node;
     }
+
   gcc_assert(sym->get_tree_decl() != NULL_TREE);
   tree var_decl = sym->get_tree_decl();
 
@@ -628,9 +664,9 @@ Parser::parse_assignment_statement ()
   return assig_expr;
 } 
 
-tree Parser::build_label_decl(location_t loc, const char* c)
+tree Parser::build_label_decl(const char* name, location_t loc)
 {
-  tree t = build_decl(loc, LABEL_DECL, get_identifier(c), void_type_node);
+  tree t = build_decl(loc, LABEL_DECL, get_identifier(name), void_type_node);
 
   gcc_assert(main_fndecl != NULL_TREE);
   DECL_CONTEXT(t) = main_fndecl;
@@ -639,169 +675,157 @@ tree Parser::build_label_decl(location_t loc, const char* c)
 }
 
 tree
-Parser::parse_if_statement ()
+Parser::build_if_statement (tree bool_expr, tree then_part, tree else_part)
 {
-  const Token *if_token = expect_token (Tiny::IF);
-  if (if_token == NULL)
-    {
-      skip_after_end ();
-      return error_mark_node;
-    }
+  if (error_operand_p (bool_expr))
+    return error_mark_node;
+
+  tree then_label_decl = build_label_decl ("then", EXPR_LOCATION (then_part));
+
+  tree else_label_decl = NULL_TREE;
+  if (else_part != NULL_TREE)
+    else_label_decl = build_label_decl ("else", EXPR_LOCATION (else_part));
+
+  tree endif_label_decl
+    = build_label_decl ("end_if", EXPR_LOCATION (then_part));
+
+  tree goto_then = build1_loc (EXPR_LOCATION (bool_expr), GOTO_EXPR,
+			       void_type_node, then_label_decl);
+  tree goto_endif = build1_loc (EXPR_LOCATION (bool_expr), GOTO_EXPR,
+				void_type_node, endif_label_decl);
+
+  tree goto_else_or_endif;
+  if (else_part != NULL_TREE)
+    goto_else_or_endif = build1_loc (EXPR_LOCATION (bool_expr), GOTO_EXPR,
+				     void_type_node, else_label_decl);
+  else
+    goto_else_or_endif = goto_endif;
 
   tree stmt_list = alloc_stmt_list ();
 
-  tree expr = parse_boolean_expression ();
-
   tree cond_expr
-    = build3_loc (if_token->get_locus (), COND_EXPR, void_type_node, expr,
-		  /* then */ NULL_TREE, /* else */ NULL_TREE);
-
+    = build3_loc (EXPR_LOCATION (bool_expr), COND_EXPR, void_type_node,
+		  bool_expr, goto_then, goto_else_or_endif);
   append_to_statement_list (cond_expr, &stmt_list);
 
-  // then label
-  skip_token (Tiny::THEN);
-  tree then_label_decl = build_label_decl (if_token->get_locus (), "then");
-
-  // then label expr
-  tree then_label_expr = build1_loc (if_token->get_locus (), LABEL_EXPR,
+  tree then_label_expr = build1_loc (EXPR_LOCATION (then_part), LABEL_EXPR,
 				     void_type_node, then_label_decl);
   append_to_statement_list (then_label_expr, &stmt_list);
 
-  COND_EXPR_THEN (cond_expr) = build1_loc (if_token->get_locus (), GOTO_EXPR,
-					   void_type_node, then_label_decl);
+  append_to_statement_list (then_part, &stmt_list);
 
-  // then block
-  enter_scope ();
-  parse_statement_seq (
-    &Parser::done_end_or_else); /* does not consume ending token */
-  tree then_block = NULL_TREE;
-  tree then_stmt_list = leave_scope (then_block);
-
-  append_to_statement_list (then_stmt_list, &stmt_list);
-
-  // end if label
-  tree end_if_label = build_label_decl (if_token->get_locus (), "endif");
-  // if the condition does not hold, for the moment just branch to end of if
-  COND_EXPR_ELSE (cond_expr) = build1_loc (if_token->get_locus (), GOTO_EXPR,
-					   void_type_node, end_if_label);
-
-  // else block (if any)
-  tree else_block = NULL_TREE;
-  tree else_stmt_list = NULL_TREE;
-  const Token *tok = lexer.peek_token ();
-  if (tok->get_id () == Tiny::ELSE)
+  if (else_part != NULL_TREE)
     {
-      // Consume 'else'
-      lexer.get_token ();
+      // Make sure after then part has been executed we go to the end if
+      append_to_statement_list (goto_endif, &stmt_list);
 
-      // if there is else, then make sure else goes to end if
-      tree goto_end_if = build1_loc (if_token->get_locus (), GOTO_EXPR,
-				     void_type_node, end_if_label);
-      append_to_statement_list (goto_end_if, &stmt_list);
-
-      // else label
-      tree else_label_decl
-	= build_label_decl (if_token->get_locus (), "else");
-      // if the condition does not hold, branch to else instead
-      COND_EXPR_ELSE (cond_expr)
-	= build1_loc (if_token->get_locus (), GOTO_EXPR, void_type_node,
-		      else_label_decl);
-
-      // else label expr
-      tree else_label_expr = build1_loc (if_token->get_locus (), LABEL_EXPR,
+      tree else_label_expr = build1_loc (EXPR_LOCATION (else_part), LABEL_EXPR,
 					 void_type_node, else_label_decl);
       append_to_statement_list (else_label_expr, &stmt_list);
 
-      enter_scope ();
-      parse_statement_seq (&Parser::done_end); /* _does_ consume ending token */
-      else_stmt_list = leave_scope (else_block);
-
-      append_to_statement_list (else_stmt_list, &stmt_list);
+      append_to_statement_list (else_part, &stmt_list);
     }
-  else if (lexer.peek_token ()->get_id () == Tiny::END)
-    {
-      // Consume 'end'
-      lexer.get_token ();
-    }
-  else
-  {
-      unexpected_token (tok);
-  }
 
-  // end if label expr
-  tree endif_label_expr = build1_loc (if_token->get_locus (), LABEL_EXPR,
-				      void_type_node, end_if_label);
+  // FIXME - location
+  tree endif_label_expr = build1_loc (UNKNOWN_LOCATION, LABEL_EXPR,
+				      void_type_node, endif_label_decl);
   append_to_statement_list (endif_label_expr, &stmt_list);
 
   return stmt_list;
 }
 
 tree
-Parser::parse_while_statement ()
+Parser::parse_if_statement ()
 {
-  const Token *while_token = expect_token (Tiny::WHILE);
-  if (while_token == NULL)
+  if (!skip_token (Tiny::IF))
     {
       skip_after_end ();
       return error_mark_node;
     }
+
+  tree expr = parse_boolean_expression ();
+
+  skip_token (Tiny::THEN);
+
+  enter_scope ();
+  parse_statement_seq (&Parser::done_end_or_else);
+  tree then_block = NULL_TREE;
+  tree then_stmt_list = leave_scope (then_block);
+
+  tree else_block = NULL_TREE;
+  tree else_stmt_list = NULL_TREE;
+  const Token *tok = lexer.peek_token ();
+  if (tok->get_id () == Tiny::ELSE)
+    {
+      // Consume 'else'
+      skip_token (Tiny::ELSE);
+
+      enter_scope ();
+      parse_statement_seq (&Parser::done_end);
+      else_stmt_list = leave_scope (else_block);
+
+      // Consume 'end'
+      skip_token (Tiny::END);
+    }
+  else if (tok->get_id () == Tiny::END)
+    {
+      // Consume 'end'
+      skip_token (Tiny::END);
+    }
+  else
+    {
+      unexpected_token (tok);
+      return error_mark_node;
+    }
+
+  return build_if_statement (expr, then_stmt_list, else_stmt_list);
+}
+
+tree
+Parser::build_while_statement (tree bool_expr, tree while_body)
+{
+  if (error_operand_p (bool_expr))
+    return error_mark_node;
 
   tree stmt_list = alloc_stmt_list ();
 
-  // while
   tree while_check_label_decl
-    = build_label_decl (while_token->get_locus (), "while_check");
+    = build_label_decl ("while_check", EXPR_LOCATION (bool_expr));
+
   tree while_check_label_expr
-    = build1_loc (while_token->get_locus (), LABEL_EXPR, void_type_node,
+    = build1_loc (EXPR_LOCATION (bool_expr), LABEL_EXPR, void_type_node,
 		  while_check_label_decl);
   append_to_statement_list (while_check_label_expr, &stmt_list);
 
-  // expr
-  tree expr = parse_boolean_expression ();
+  tree while_body_label_decl
+    = build_label_decl ("while_body", EXPR_LOCATION (while_body));
+  tree end_of_while_label_decl
+    // FIXME - location
+    = build_label_decl ("end_of_while", UNKNOWN_LOCATION);
 
   tree cond_expr
-    = build3_loc (while_token->get_locus (), COND_EXPR, void_type_node, expr,
-		  /* then */ NULL, /* else */ NULL);
+    = build3_loc (EXPR_LOCATION (bool_expr), COND_EXPR, void_type_node,
+		  bool_expr, build1_loc (EXPR_LOCATION (bool_expr), GOTO_EXPR,
+					 void_type_node, while_body_label_decl),
+		  build1_loc (EXPR_LOCATION (bool_expr), GOTO_EXPR,
+			      void_type_node, end_of_while_label_decl));
   append_to_statement_list (cond_expr, &stmt_list);
 
-  const Token *do_token = expect_token (Tiny::DO);
-  if (do_token == NULL)
-    {
-      skip_after_end ();
-      return error_mark_node;
-    }
-
-  // do ...
-  tree while_body_label_decl
-    = build_label_decl (do_token->get_locus (), "while_body");
-  COND_EXPR_THEN (cond_expr)
-    = build1_loc (do_token->get_locus (), GOTO_EXPR, void_type_node,
-		  while_body_label_decl);
   tree while_body_label_expr
-    = build1_loc (do_token->get_locus (), LABEL_EXPR, void_type_node,
+    = build1_loc (EXPR_LOCATION (while_body), LABEL_EXPR, void_type_node,
 		  while_body_label_decl);
   append_to_statement_list (while_body_label_expr, &stmt_list);
 
-  // <statements>
-  enter_scope ();
-  parse_statement_seq (&Parser::done_end);
-  tree while_body_block = NULL_TREE;
-  tree while_body_list_stmt = leave_scope (while_body_block);
-  append_to_statement_list (while_body_list_stmt, &stmt_list);
+  append_to_statement_list (while_body, &stmt_list);
 
-  // branch back to the check
-  tree goto_while_check = build1_loc (do_token->get_locus (), GOTO_EXPR,
-				      void_type_node, while_check_label_decl);
-  append_to_statement_list (goto_while_check, &stmt_list);
+  // FIXME - location
+  tree goto_check = build1_loc (UNKNOWN_LOCATION, GOTO_EXPR, void_type_node,
+				while_check_label_decl);
+  append_to_statement_list (goto_check, &stmt_list);
 
-  // end
-  tree end_of_while_label_decl
-    = build_label_decl (do_token->get_locus (), "end_of_while");
-  COND_EXPR_ELSE (cond_expr)
-    = build1_loc (do_token->get_locus (), GOTO_EXPR, void_type_node,
-		  end_of_while_label_decl);
+  // FIXME - location
   tree end_of_while_label_expr
-    = build1_loc (do_token->get_locus (), LABEL_EXPR, void_type_node,
+    = build1_loc (UNKNOWN_LOCATION, LABEL_EXPR, void_type_node,
 		  end_of_while_label_decl);
   append_to_statement_list (end_of_while_label_expr, &stmt_list);
 
@@ -809,10 +833,128 @@ Parser::parse_while_statement ()
 }
 
 tree
+Parser::parse_while_statement ()
+{
+  if (!skip_token (Tiny::WHILE))
+    {
+      skip_after_end ();
+      return error_mark_node;
+    }
+
+  tree expr = parse_boolean_expression ();
+  if (!skip_token (Tiny::DO))
+    {
+      skip_after_end ();
+      return error_mark_node;
+    }
+
+  enter_scope ();
+  parse_statement_seq (&Parser::done_end);
+  tree while_body_block = NULL_TREE;
+  tree while_body_list_stmt = leave_scope (while_body_block);
+
+  skip_token (Tiny::END);
+
+  return build_while_statement (expr, while_body_list_stmt);
+}
+
+tree
+Parser::build_for_statement (Symbol *ind_var, tree lower_bound,
+			     tree upper_bound, tree for_body_stmt_list)
+{
+  if (ind_var == NULL)
+    return error_mark_node;
+  tree ind_var_decl = ind_var->get_tree_decl ();
+
+  // Lower
+  if (error_operand_p (lower_bound))
+    return error_mark_node;
+
+  // Upper
+  if (error_operand_p (upper_bound))
+    return error_mark_node;
+
+  // ind_var := lower;
+  tree stmt_list = alloc_stmt_list ();
+
+  tree init_ind_var
+    = build2_loc (/* FIXME */ UNKNOWN_LOCATION, MODIFY_EXPR, void_type_node,
+		  ind_var_decl, lower_bound);
+  append_to_statement_list (init_ind_var, &stmt_list);
+
+  // ind_var <= upper
+  tree while_condition
+    = build2_loc (EXPR_LOCATION (upper_bound), LE_EXPR, boolean_type_node,
+		  ind_var_decl, upper_bound);
+
+  // for-body
+  // ind_var := ind_var + 1
+  tree incr_ind_var
+    = build2_loc (/* FIXME */ UNKNOWN_LOCATION, MODIFY_EXPR, void_type_node,
+		  ind_var_decl,
+		  build2_loc (UNKNOWN_LOCATION, PLUS_EXPR, integer_type_node,
+			      ind_var_decl,
+			      build_int_cst_type (::integer_type_node, 1)));
+  append_to_statement_list (incr_ind_var, &for_body_stmt_list);
+
+  // construct the associated while statement
+  tree while_stmt = build_while_statement (while_condition, for_body_stmt_list);
+  append_to_statement_list (while_stmt, &stmt_list);
+
+  return stmt_list;
+}
+
+tree
 Parser::parse_for_statement ()
 {
-  sorry ("for statement");
-  return error_mark_node;
+  if (!skip_token (Tiny::FOR))
+    {
+      skip_after_end ();
+      return error_mark_node;
+    }
+
+  const Token *identifier = expect_token (Tiny::IDENTIFIER);
+  if (identifier == NULL)
+    {
+      skip_after_end ();
+      return error_mark_node;
+    }
+
+  if (!skip_token (Tiny::ASSIG))
+    {
+      skip_after_end ();
+      return error_mark_node;
+    }
+
+  tree lower_bound = parse_integer_expression ();
+
+  if (!skip_token (Tiny::TO))
+    {
+      skip_after_end ();
+      return error_mark_node;
+    }
+
+  tree upper_bound = parse_integer_expression ();
+
+  if (!skip_token (Tiny::DO))
+    {
+      skip_after_end ();
+      return error_mark_node;
+    }
+
+  enter_scope ();
+  parse_statement_seq (&Parser::done_end);
+
+  tree for_body_block = NULL_TREE;
+  tree for_body_stmt_list = leave_scope (for_body_block);
+
+  skip_token (Tiny::END);
+
+  // Induction var
+  Symbol *ind_var
+    = query_integer_variable (identifier->get_str (), identifier->get_locus ());
+
+  return build_for_statement(ind_var, lower_bound, upper_bound, for_body_stmt_list);
 }
 
 tree
@@ -1045,11 +1187,11 @@ namespace
 {
 enum binding_powers
 {
-  // highest priority
+  // Highest priority
   LBP_HIGHEST = 100,
 
-  LBP_UNARY_PLUS = 50,  // used only when the null denotation is +
-  LBP_UNARY_MINUS = 50, // used only when the null denotation is -
+  LBP_UNARY_PLUS = 50,  // Used only when the null denotation is +
+  LBP_UNARY_MINUS = 50, // Used only when the null denotation is -
 
   LBP_MUL = 40,
   LBP_DIV = LBP_MUL,
@@ -1069,7 +1211,7 @@ enum binding_powers
   LBP_LOGICAL_OR = 10,
   LBP_LOGICAL_NOT = 10,
 
-    // lowest priority
+    // Lowest priority
   LBP_LOWEST
   = 0,
 };
@@ -1327,13 +1469,13 @@ Parser::binary_div (const Token *tok, tree left)
   if (TREE_TYPE (left) == integer_type_node
       && TREE_TYPE (right) == integer_type_node)
     {
-      // integer division (truncating, like in C)
+      // Integer division (truncating, like in C)
       return build2_loc (tok->get_locus (), TRUNC_DIV_EXPR, integer_type_node,
 			 left, right);
     }
   else
     {
-      // real division
+      // Real division
       tree tree_type = coerce_binary_arithmetic (tok, &left, &right);
       if (error_operand_p(tree_type))
         return error_mark_node;
@@ -1354,7 +1496,7 @@ Parser::binary_mod (const Token *tok, tree left)
   if (TREE_TYPE (left) == integer_type_node
       && TREE_TYPE (right) == integer_type_node)
     {
-      // integer division (truncating, like in C)
+      // Integer division (truncating, like in C)
       return build2_loc (tok->get_locus (), TRUNC_MOD_EXPR, integer_type_node,
 			 left, right);
     }
@@ -1535,6 +1677,23 @@ Parser::parse_boolean_expression ()
     }
   return expr;
 }
+
+tree
+Parser::parse_integer_expression ()
+{
+  tree expr = parse_expression();
+  if (error_operand_p(expr))
+    return expr;
+
+  if (TREE_TYPE(expr) != integer_type_node)
+    {
+      error_at(EXPR_LOCATION(expr), "expected expression of integer type but its type is %s",
+               print_type(TREE_TYPE(expr)));
+      return error_mark_node;
+    }
+  return expr;
+}
+
 }
 
 // ------------------------------------------------------
