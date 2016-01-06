@@ -57,8 +57,7 @@ gcctiny$(exeext): $(GCCTINY_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a $(LIBDEPS
 
 # The compiler proper
 
-TINY_OBJS = \
-    attribs.o \
+tiny_OBJS = \
     tiny/tiny1.o \
     tiny/tiny-parser.o \
     tiny/tiny-lexer.o \
@@ -68,9 +67,9 @@ TINY_OBJS = \
     tiny/tiny-convert.o \
     $(END)
 
-tiny1$(exeext): $(TINY_OBJS) $(BACKEND) $(LIBDEPS)
+tiny1$(exeext): attribs.o $(tiny_OBJS) $(BACKEND) $(LIBDEPS)
 	+$(LLINKER) $(ALL_LINKERFLAGS) $(LDFLAGS) -o $@ \
-	      $(TINY_OBJS) $(BACKEND) $(LIBS) $(BACKENDLIBS)
+	      attribs.o $(tiny_OBJS) $(BACKEND) $(LIBS) $(BACKENDLIBS)
 
 # FIXME
 tiny.all.cross:
@@ -107,7 +106,7 @@ tiny.html:
 
 tiny.uninstall:
 	-rm -f gcctiny$(exeext) tiny1$(exeext)
-	-rm -f $(TINY_OBJS)
+	-rm -f $(tiny_OBJS)
 
 tiny.man:
 
