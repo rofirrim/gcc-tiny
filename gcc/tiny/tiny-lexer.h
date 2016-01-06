@@ -165,7 +165,6 @@ public:
 struct Lexer
 {
 private:
-  int real_get (int n);
   location_t get_current_location ();
 
   int get_input ();
