@@ -12,7 +12,7 @@ namespace Tiny
 template <typename T, typename Source> struct buffered_queue
 {
 public:
-  buffered_queue (Source &src) : source (src), start(0), end(0), buffer() {}
+  buffered_queue (Source &src) : source (src), start (0), end (0), buffer () {}
 
   T
   peek (int n)
