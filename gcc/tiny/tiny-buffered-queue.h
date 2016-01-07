@@ -59,10 +59,10 @@ public:
     return buffer[start + n];
   }
 
-  T
-  get (int n)
+  void
+  skip (int n)
   {
-    T result = peek (n);
+    peek (n);
 
     start += (n + 1);
 
@@ -74,8 +74,6 @@ public:
       {
 	start = end = 0;
       }
-
-    return result;
   }
 
 private:

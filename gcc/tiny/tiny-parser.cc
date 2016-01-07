@@ -210,12 +210,12 @@ Parser::skip_after_semicolon ()
 
   while (t->get_id () != Tiny::END_OF_FILE && t->get_id () != Tiny::SEMICOLON)
     {
-      lexer.get_token ();
+      lexer.skip_token ();
       t = lexer.peek_token ();
     }
 
   if (t->get_id () == Tiny::SEMICOLON)
-    lexer.get_token ();
+    lexer.skip_token ();
 }
 
 void
@@ -225,12 +225,12 @@ Parser::skip_after_end ()
 
   while (t->get_id () != Tiny::END_OF_FILE && t->get_id () != Tiny::END)
     {
-      lexer.get_token ();
+      lexer.skip_token ();
       t = lexer.peek_token ();
     }
 
   if (t->get_id () == Tiny::END)
-    lexer.get_token ();
+    lexer.skip_token ();
 }
 
 const Token *
@@ -239,7 +239,7 @@ Parser::expect_token (Tiny::TokenId token_id)
   const Token *t = lexer.peek_token ();
   if (t->get_id () == token_id)
     {
-      lexer.get_token ();
+      lexer.skip_token ();
       return t;
     }
   else
@@ -565,11 +565,11 @@ Parser::parse_type ()
   switch (t->get_id ())
     {
     case Tiny::INT:
-      lexer.get_token ();
+      lexer.skip_token ();
       return ::integer_type_node;
       break;
     case Tiny::FLOAT:
-      lexer.get_token ();
+      lexer.skip_token ();
       return ::float_type_node;
       break;
     default:
@@ -1161,7 +1161,7 @@ tree
 Parser::parse_expression (int right_binding_power)
 {
   const Token *current_token = lexer.peek_token ();
-  lexer.get_token (); // This is silly but it matches the code below
+  lexer.skip_token (); // This is silly but it matches the code below
   const Token *next_token = lexer.peek_token ();
 
   tree expr = null_denotation (current_token);
@@ -1172,7 +1172,7 @@ Parser::parse_expression (int right_binding_power)
   while (right_binding_power < left_binding_power (next_token))
     {
       current_token = next_token;
-      lexer.get_token ();
+      lexer.skip_token ();
       next_token = lexer.peek_token ();
 
       expr = left_denotation (current_token, expr);
@@ -1303,7 +1303,7 @@ Parser::null_denotation (const Token *tok)
 	  error_at (tok->get_locus (), "expecting ')' but %s found\n",
 		    tok->get_token_description ());
 	else
-	  lexer.get_token ();
+	  lexer.skip_token ();
 	return expr;
       }
     case Tiny::PLUS:

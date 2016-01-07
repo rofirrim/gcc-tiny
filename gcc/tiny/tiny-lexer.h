@@ -167,8 +167,8 @@ struct Lexer
 private:
   location_t get_current_location ();
 
-  int get_input ();
-  int get_input (int);
+  void skip_input ();
+  void skip_input (int);
 
   int peek_input ();
   int peek_input (int);
@@ -184,8 +184,8 @@ public:
   const Token *peek_token ();
   const Token *peek_token (int);
 
-  const Token *get_token ();
-  const Token *get_token (int);
+  void skip_token ();
+  void skip_token (int);
 
 private:
   FILE *input;

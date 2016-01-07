@@ -90,16 +90,16 @@ Lexer::peek_input ()
   return peek_input (0);
 }
 
-int
-Lexer::get_input (int n)
+void
+Lexer::skip_input (int n)
 {
-  return input_queue.get (n);
+  input_queue.skip (n);
 }
 
-int
-Lexer::get_input ()
+void
+Lexer::skip_input ()
 {
-  return get_input (0);
+  skip_input (0);
 }
 
 namespace
@@ -150,7 +150,8 @@ Lexer::build_token ()
   for (;;)
     {
       location_t loc = get_current_location ();
-      int current_char = get_input ();
+      int current_char = peek_input ();
+      skip_input ();
 
       if (current_char == EOF)
 	{
@@ -181,7 +182,7 @@ Lexer::build_token ()
 	case ':':
 	  if (peek_input () == '=')
 	    {
-	      get_input ();
+	      skip_input ();
 	      current_column += 2;
 
 	      return Token::make (ASSIG, loc);
@@ -201,7 +202,7 @@ Lexer::build_token ()
 	case '!':
 	  if (peek_input () == '=')
 	    {
-	      get_input ();
+	      skip_input ();
 	      current_column += 2;
 
 	      return Token::make (DIFFERENT, loc);
@@ -228,7 +229,7 @@ Lexer::build_token ()
 	case '<':
 	  if (peek_input () == '=')
 	    {
-	      get_input ();
+	      skip_input ();
 	      current_column += 2;
 
 	      return Token::make (LOWER_OR_EQUAL, loc);
@@ -242,7 +243,7 @@ Lexer::build_token ()
 	case '>':
 	  if (peek_input () == '=')
 	    {
-	      get_input ();
+	      skip_input ();
 	      current_column += 2;
 
 	      return Token::make (GREATER_OR_EQUAL, loc);
@@ -264,7 +265,7 @@ Lexer::build_token ()
 	  current_char = peek_input ();
 	  while (current_char != '\n')
 	    {
-	      get_input ();
+	      skip_input ();
 	      current_column++; // won't be used
 	      current_char = peek_input ();
 	    }
@@ -288,7 +289,7 @@ Lexer::build_token ()
 	      length++;
 
 	      dyn_string_append_char (dstr, (char) current_char);
-	      get_input ();
+	      skip_input ();
 	      current_char = peek_input ();
 	    }
 
@@ -327,7 +328,7 @@ Lexer::build_token ()
 	      is_real = is_real || (current_char == '.');
 
 	      dyn_string_append_char (dstr, (char) current_char);
-	      get_input ();
+	      skip_input ();
 	      current_char = peek_input ();
 	    }
 
@@ -359,7 +360,7 @@ Lexer::build_token ()
 	      length++;
 
 	      dyn_string_append_char (dstr, (char) current_char);
-	      get_input ();
+	      skip_input ();
 	      current_char = peek_input ();
 	    }
 
@@ -371,7 +372,7 @@ Lexer::build_token ()
 	    }
 	  else if (current_char == '"')
 	    {
-	      get_input ();
+	      skip_input ();
 	    }
 	  else
 	    {
@@ -400,15 +401,15 @@ Lexer::peek_token ()
   return peek_token (0);
 }
 
-const Token *
-Lexer::get_token (int n)
+void
+Lexer::skip_token (int n)
 {
-  return token_queue.get (n);
+  token_queue.skip (n);
 }
 
-const Token *
-Lexer::get_token ()
+void
+Lexer::skip_token ()
 {
-  return get_token (0);
+  skip_token (0);
 }
 }
