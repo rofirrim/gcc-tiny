@@ -58,10 +58,7 @@ private:
   {
     Lexer *lexer;
     TokenSource (Lexer *lexer_) : lexer (lexer_) {}
-    TokenPtr operator() ()
-    {
-      return lexer->build_token ();
-    }
+    TokenPtr operator() () { return lexer->build_token (); }
   };
 
   TokenSource token_source;
