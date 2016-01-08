@@ -60,6 +60,7 @@ gcctiny$(exeext): $(GCCTINY_OBJS) $(EXTRA_GCC_OBJS) libcommon-target.a $(LIBDEPS
 tiny_OBJS = \
     tiny/tiny1.o \
     tiny/tiny-parser.o \
+    tiny/tiny-token.o \
     tiny/tiny-lexer.o \
     tiny/tiny-symbol.o \
     tiny/tiny-scope.o \
