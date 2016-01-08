@@ -22,7 +22,7 @@ private:
   int peek_input ();
   int peek_input (int);
 
-  TokenId classify_keyword (const char *);
+  TokenId classify_keyword (const std::string &);
 
   TokenPtr build_token ();
 

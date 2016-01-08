@@ -5,7 +5,6 @@
 #include "input.h"
 #include "diagnostic.h"
 #include "safe-ctype.h"
-#include "dyn-string.h"
 
 #include <cstdlib>
 #include <algorithm>
@@ -91,12 +90,14 @@ strless (const char *str1, const char *str2)
 }
 
 TokenId
-Lexer::classify_keyword (const char *str)
+Lexer::classify_keyword (const std::string &str)
 {
-  const char **last = keyword_index + num_keywords;
-  const char **idx = std::lower_bound (keyword_index, last, str, strless);
+  const char *c_str = str.c_str ();
 
-  if (idx == last || strcmp (str, *idx) != 0)
+  const char **last = keyword_index + num_keywords;
+  const char **idx = std::lower_bound (keyword_index, last, c_str, strless);
+
+  if (idx == last || strcmp (c_str, *idx) != 0)
     return IDENTIFIER;
   else
     {
@@ -238,8 +239,9 @@ Lexer::build_token ()
       // ***************************
       if (ISALPHA (current_char) || current_char == '_')
 	{
-	  dyn_string_t dstr = dyn_string_new (/* initial capacity */ 16);
-	  dyn_string_append_char (dstr, (char) current_char);
+	  std::string str;
+	  str.reserve (16); // some sensible default
+	  str += current_char;
 
 	  int length = 1;
 	  current_char = peek_input ();
@@ -248,14 +250,12 @@ Lexer::build_token ()
 	    {
 	      length++;
 
-	      dyn_string_append_char (dstr, (char) current_char);
+	      str += current_char;
 	      skip_input ();
 	      current_char = peek_input ();
 	    }
 
 	  current_column += length;
-
-	  char *str = dyn_string_release (dstr);
 
 	  TokenId keyword = classify_keyword (str);
 	  if (keyword == IDENTIFIER)
@@ -264,7 +264,6 @@ Lexer::build_token ()
 	    }
 	  else
 	    {
-	      XDELETE (str);
 	      return Token::make (keyword, loc);
 	    }
 	}
@@ -274,8 +273,9 @@ Lexer::build_token ()
       // ****************************
       if (ISDIGIT (current_char) || current_char == '.')
 	{
-	  dyn_string_t dstr = dyn_string_new (/* initial capacity */ 16);
-	  dyn_string_append_char (dstr, (char) current_char);
+	  std::string str;
+	  str.reserve (16); // some sensible default
+	  str += current_char;
 
 	  bool is_real = (current_char == '.');
 
@@ -287,14 +287,12 @@ Lexer::build_token ()
 
 	      is_real = is_real || (current_char == '.');
 
-	      dyn_string_append_char (dstr, (char) current_char);
+	      str += current_char;
 	      skip_input ();
 	      current_char = peek_input ();
 	    }
 
 	  current_column += length;
-
-	  char *str = dyn_string_release (dstr);
 
 	  if (is_real)
 	    {
@@ -311,7 +309,8 @@ Lexer::build_token ()
       // *******************
       if (current_char == '"')
 	{
-	  dyn_string_t dstr = dyn_string_new (/* initial capacity */ 16);
+	  std::string str;
+	  str.reserve (16); // some sensible default
 
 	  int length = 1;
 	  current_char = peek_input ();
@@ -319,7 +318,7 @@ Lexer::build_token ()
 	    {
 	      length++;
 
-	      dyn_string_append_char (dstr, (char) current_char);
+	      str += current_char;
 	      skip_input ();
 	      current_char = peek_input ();
 	    }
@@ -339,7 +338,6 @@ Lexer::build_token ()
 	      gcc_unreachable ();
 	    }
 
-	  char *str = dyn_string_release (dstr);
 	  return Token::make_string (loc, str);
 	}
 

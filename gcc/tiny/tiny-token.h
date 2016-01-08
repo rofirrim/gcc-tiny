@@ -87,7 +87,7 @@ private:
     : token_id (token_id_), locus (locus_), str (0)
   {
   }
-  Token (TokenId token_id_, location_t locus_, const char *str_)
+  Token (TokenId token_id_, location_t locus_, const std::string& str_)
     : token_id (token_id_), locus (locus_), str (new std::string (str_))
   {
   }
@@ -108,25 +108,25 @@ public:
   }
 
   static TokenPtr
-  make_identifier (location_t locus, const char *str)
+  make_identifier (location_t locus, const std::string& str)
   {
     return TokenPtr(new Token (IDENTIFIER, locus, str));
   }
 
   static TokenPtr
-  make_integer (location_t locus, const char *str)
+  make_integer (location_t locus, const std::string& str)
   {
     return TokenPtr(new Token (INTEGER_LITERAL, locus, str));
   }
 
   static TokenPtr
-  make_real (location_t locus, const char *str)
+  make_real (location_t locus, const std::string& str)
   {
     return TokenPtr(new Token (REAL_LITERAL, locus, str));
   }
 
   static TokenPtr
-  make_string (location_t locus, const char *str)
+  make_string (location_t locus, const std::string& str)
   {
     return TokenPtr(new Token (STRING_LITERAL, locus, str));
   }
