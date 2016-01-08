@@ -67,7 +67,7 @@ public:
     for (int i = 0; i < (n + 1); i++)
       {
 	// Clear the value
-	buffer[start + i] = typename Source::type ();
+	buffer[start + i] = T();
       }
 
     start += (n + 1);

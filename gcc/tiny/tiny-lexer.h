@@ -47,8 +47,6 @@ private:
 
   struct InputSource
   {
-    typedef int type;
-
     FILE *input;
     InputSource (FILE *input_) : input (input_) {}
     int operator() () { return fgetc (input); }
@@ -58,8 +56,6 @@ private:
 
   struct TokenSource
   {
-    typedef TokenPtr type;
-
     Lexer *lexer;
     TokenSource (Lexer *lexer_) : lexer (lexer_) {}
     TokenPtr operator() ()
