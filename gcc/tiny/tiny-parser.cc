@@ -94,18 +94,18 @@ private:
   void skip_after_end ();
 
   bool skip_token (TokenId);
-  const Token *expect_token (TokenId);
-  void unexpected_token (const Token *);
+  const_TokenPtr expect_token (TokenId);
+  void unexpected_token (const_TokenPtr );
 
   // Expression parsing
-  int left_binding_power (const Token *tok);
-  tree null_denotation (const Token *tok);
-  tree left_denotation (const Token *tok, tree left);
+  int left_binding_power (const_TokenPtr tok);
+  tree null_denotation (const_TokenPtr tok);
+  tree left_denotation (const_TokenPtr tok, tree left);
 
   tree parse_expression (int right_binding_power);
 
-  tree coerce_binary_arithmetic (const Token *tok, tree *left, tree *right);
-  bool check_logical_operands (const Token *tok, tree left, tree right);
+  tree coerce_binary_arithmetic (const_TokenPtr tok, tree *left, tree *right);
+  bool check_logical_operands (const_TokenPtr tok, tree left, tree right);
 
   tree get_printf_addr ();
   tree get_puts_addr ();
@@ -136,7 +136,7 @@ private:
   bool done_end_or_else ();
   bool done_end_of_file ();
 
-  typedef tree (Parser::*BinaryHandler) (const Token *, tree);
+  typedef tree (Parser::*BinaryHandler) (const_TokenPtr , tree);
   BinaryHandler get_binary_handler (TokenId id);
 
 #define BINARY_HANDLER_LIST                                                    \
@@ -157,7 +157,7 @@ private:
   BINARY_HANDLER (logical_or, OR)
 
 #define BINARY_HANDLER(name, _)                                                \
-  tree binary_##name (const Token *tok, tree left);
+  tree binary_##name (const_TokenPtr tok, tree left);
   BINARY_HANDLER_LIST
 #undef BINARY_HANDLER
 
@@ -206,7 +206,7 @@ private:
 void
 Parser::skip_after_semicolon ()
 {
-  const Token *t = lexer.peek_token ();
+  const_TokenPtr t = lexer.peek_token ();
 
   while (t->get_id () != Tiny::END_OF_FILE && t->get_id () != Tiny::SEMICOLON)
     {
@@ -221,7 +221,7 @@ Parser::skip_after_semicolon ()
 void
 Parser::skip_after_end ()
 {
-  const Token *t = lexer.peek_token ();
+  const_TokenPtr t = lexer.peek_token ();
 
   while (t->get_id () != Tiny::END_OF_FILE && t->get_id () != Tiny::END)
     {
@@ -233,10 +233,10 @@ Parser::skip_after_end ()
     lexer.skip_token ();
 }
 
-const Token *
+const_TokenPtr 
 Parser::expect_token (Tiny::TokenId token_id)
 {
-  const Token *t = lexer.peek_token ();
+  const_TokenPtr t = lexer.peek_token ();
   if (t->get_id () == token_id)
     {
       lexer.skip_token ();
@@ -246,7 +246,7 @@ Parser::expect_token (Tiny::TokenId token_id)
     {
       error_at (t->get_locus (), "expecting %s but %s found\n",
 		get_token_description (token_id), t->get_token_description ());
-      return NULL;
+      return const_TokenPtr();
     }
 }
 
@@ -257,7 +257,7 @@ Parser::skip_token (Tiny::TokenId token_id)
 }
 
 void
-Parser::unexpected_token (const Token *t)
+Parser::unexpected_token (const_TokenPtr t)
 {
   ::error_at (t->get_locus (), "unexpected %s\n",
 	      t->get_token_description ());
@@ -314,7 +314,7 @@ Parser::parse_program ()
 bool
 Parser::done_end_of_file ()
 {
-  const Token *t = lexer.peek_token ();
+  const_TokenPtr t = lexer.peek_token ();
   bool done = false;
   if (t->get_id () == Tiny::END_OF_FILE)
     {
@@ -327,7 +327,7 @@ Parser::done_end_of_file ()
 bool
 Parser::done_end ()
 {
-  const Token *t = lexer.peek_token ();
+  const_TokenPtr t = lexer.peek_token ();
   bool done = false;
   if (t->get_id () == Tiny::END
           || t->get_id() == Tiny::END_OF_FILE)
@@ -341,7 +341,7 @@ Parser::done_end ()
 bool
 Parser::done_end_or_else ()
 {
-  const Token *t = lexer.peek_token ();
+  const_TokenPtr t = lexer.peek_token ();
   bool done = false;
   if (t->get_id () == Tiny::END
       || t->get_id() == Tiny::ELSE
@@ -426,7 +426,7 @@ Parser::parse_statement ()
 	   |  read_statement
 	   |  write_statement
 	   */
-  const Token *t = lexer.peek_token ();
+  const_TokenPtr t = lexer.peek_token ();
 
   switch (t->get_id ())
     {
@@ -467,7 +467,7 @@ Parser::parse_variable_declaration ()
       return error_mark_node;
     }
 
-  const Token *identifier = expect_token (Tiny::IDENTIFIER);
+  const_TokenPtr identifier = expect_token (Tiny::IDENTIFIER);
   if (identifier == NULL)
     {
       skip_after_semicolon ();
@@ -560,7 +560,7 @@ Parser::parse_type ()
   // type -> "int"
   //      | "float"
 
-  const Token *t = lexer.peek_token ();
+  const_TokenPtr t = lexer.peek_token ();
 
   switch (t->get_id ())
     {
@@ -616,7 +616,7 @@ tree
 Parser::parse_assignment_statement ()
 {
   // assignment_statement -> identifier ":=" expression ";"
-  const Token *identifier = expect_token(Tiny::IDENTIFIER);
+  const_TokenPtr identifier = expect_token(Tiny::IDENTIFIER);
   if (identifier == NULL)
     {
       skip_after_semicolon();
@@ -633,14 +633,14 @@ Parser::parse_assignment_statement ()
   gcc_assert(sym->get_tree_decl() != NULL_TREE);
   tree var_decl = sym->get_tree_decl();
 
-  const Token* assig_tok = expect_token(Tiny::ASSIG);
+  const_TokenPtr  assig_tok = expect_token(Tiny::ASSIG);
   if (assig_tok == NULL)
     {
       skip_after_semicolon ();
       return error_mark_node;
     }
 
-  const Token *first_of_expr = lexer.peek_token();
+  const_TokenPtr first_of_expr = lexer.peek_token();
 
   tree expr = parse_expression ();
   if (error_operand_p(expr))
@@ -754,7 +754,7 @@ Parser::parse_if_statement ()
 
   tree else_block = NULL_TREE;
   tree else_stmt_list = NULL_TREE;
-  const Token *tok = lexer.peek_token ();
+  const_TokenPtr tok = lexer.peek_token ();
   if (tok->get_id () == Tiny::ELSE)
     {
       // Consume 'else'
@@ -913,7 +913,7 @@ Parser::parse_for_statement ()
       return error_mark_node;
     }
 
-  const Token *identifier = expect_token (Tiny::IDENTIFIER);
+  const_TokenPtr identifier = expect_token (Tiny::IDENTIFIER);
   if (identifier == NULL)
     {
       skip_after_end ();
@@ -990,7 +990,7 @@ Parser::parse_read_statement ()
       return error_mark_node;
     }
 
-  const Token *first_of_expr = lexer.peek_token ();
+  const_TokenPtr first_of_expr = lexer.peek_token ();
   tree expr = parse_expression ();
 
   skip_token (Tiny::SEMICOLON);
@@ -1095,7 +1095,7 @@ Parser::parse_write_statement ()
       return error_mark_node;
     }
 
-  const Token *first_of_expr = lexer.peek_token ();
+  const_TokenPtr first_of_expr = lexer.peek_token ();
   tree expr = parse_expression ();
 
   skip_token (Tiny::SEMICOLON);
@@ -1160,9 +1160,9 @@ Parser::parse_write_statement ()
 tree
 Parser::parse_expression (int right_binding_power)
 {
-  const Token *current_token = lexer.peek_token ();
+  const_TokenPtr current_token = lexer.peek_token ();
   lexer.skip_token (); // This is silly but it matches the code below
-  const Token *next_token = lexer.peek_token ();
+  const_TokenPtr next_token = lexer.peek_token ();
 
   tree expr = null_denotation (current_token);
 
@@ -1219,7 +1219,7 @@ enum binding_powers
 
 // This implements priorities
 int
-Parser::left_binding_power (const Token *token)
+Parser::left_binding_power (const_TokenPtr token)
 {
   switch (token->get_id ())
     {
@@ -1258,7 +1258,7 @@ Parser::left_binding_power (const Token *token)
 // This is invoked when a token (including prefix operands) is found at a
 // "prefix" position
 tree
-Parser::null_denotation (const Token *tok)
+Parser::null_denotation (const_TokenPtr tok)
 {
   switch (tok->get_id ())
     {
@@ -1364,7 +1364,7 @@ Parser::null_denotation (const Token *tok)
 }
 
 tree
-Parser::coerce_binary_arithmetic (const Token* tok, tree *left, tree *right)
+Parser::coerce_binary_arithmetic (const_TokenPtr  tok, tree *left, tree *right)
 {
   tree left_type = TREE_TYPE (*left);
   tree right_type = TREE_TYPE (*right);
@@ -1418,7 +1418,7 @@ Parser::get_binary_handler (TokenId id)
 }
 
 tree
-Parser::binary_plus (const Token *tok, tree left)
+Parser::binary_plus (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_PLUS);
   if (error_operand_p (right))
@@ -1432,7 +1432,7 @@ Parser::binary_plus (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_minus (const Token *tok, tree left)
+Parser::binary_minus (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_MINUS);
   if (error_operand_p (right))
@@ -1446,7 +1446,7 @@ Parser::binary_minus (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_mult (const Token *tok, tree left)
+Parser::binary_mult (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_MUL);
   if (error_operand_p (right))
@@ -1460,7 +1460,7 @@ Parser::binary_mult (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_div (const Token *tok, tree left)
+Parser::binary_div (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_DIV);
   if (error_operand_p (right))
@@ -1487,7 +1487,7 @@ Parser::binary_div (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_mod (const Token *tok, tree left)
+Parser::binary_mod (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_MOD);
   if (error_operand_p (right))
@@ -1509,7 +1509,7 @@ Parser::binary_mod (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_equal (const Token *tok, tree left)
+Parser::binary_equal (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_EQUAL);
   if (error_operand_p (right))
@@ -1524,7 +1524,7 @@ Parser::binary_equal (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_different (const Token *tok, tree left)
+Parser::binary_different (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_EQUAL);
   if (error_operand_p (right))
@@ -1539,7 +1539,7 @@ Parser::binary_different (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_lower_than (const Token *tok, tree left)
+Parser::binary_lower_than (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_EQUAL);
   if (error_operand_p (right))
@@ -1554,7 +1554,7 @@ Parser::binary_lower_than (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_lower_equal (const Token *tok, tree left)
+Parser::binary_lower_equal (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_EQUAL);
   if (error_operand_p (right))
@@ -1569,7 +1569,7 @@ Parser::binary_lower_equal (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_greater_than (const Token *tok, tree left)
+Parser::binary_greater_than (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_EQUAL);
   if (error_operand_p (right))
@@ -1584,7 +1584,7 @@ Parser::binary_greater_than (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_greater_equal (const Token *tok, tree left)
+Parser::binary_greater_equal (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_EQUAL);
   if (error_operand_p (right))
@@ -1598,7 +1598,7 @@ Parser::binary_greater_equal (const Token *tok, tree left)
 		     right);
 }
 
-bool Parser::check_logical_operands(const Token* tok, tree left, tree right)
+bool Parser::check_logical_operands(const_TokenPtr  tok, tree left, tree right)
 {
   if (TREE_TYPE(left) != boolean_type_node
       || TREE_TYPE(right) != boolean_type_node)
@@ -1614,7 +1614,7 @@ bool Parser::check_logical_operands(const Token* tok, tree left, tree right)
 }
 
 tree
-Parser::binary_logical_and (const Token *tok, tree left)
+Parser::binary_logical_and (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_EQUAL);
   if (error_operand_p (right))
@@ -1628,7 +1628,7 @@ Parser::binary_logical_and (const Token *tok, tree left)
 }
 
 tree
-Parser::binary_logical_or (const Token *tok, tree left)
+Parser::binary_logical_or (const_TokenPtr tok, tree left)
 {
   tree right = parse_expression (LBP_EQUAL);
   if (error_operand_p (right))
@@ -1644,7 +1644,7 @@ Parser::binary_logical_or (const Token *tok, tree left)
 // This is invoked when a token (likely an operand) is found at a (likely
 // infix) non-prefix position
 tree
-Parser::left_denotation (const Token *tok, tree left)
+Parser::left_denotation (const_TokenPtr tok, tree left)
 {
   BinaryHandler binary_handler = get_binary_handler(tok->get_id());
   if (binary_handler == NULL)

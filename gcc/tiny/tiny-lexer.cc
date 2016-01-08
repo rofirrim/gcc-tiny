@@ -60,12 +60,6 @@ Lexer::Lexer (const char *filename, FILE *input_)
 
 Lexer::~Lexer ()
 {
-  for (std::vector<Token *>::iterator it = token_seq.begin ();
-       it != token_seq.end (); it++)
-    {
-      delete *it;
-    }
-
   ::linemap_add (::line_table, ::LC_LEAVE,
 		 /* sysp */ 0,
 		 /* filename */ NULL,
@@ -144,7 +138,7 @@ Lexer::classify_keyword (const char *str)
     }
 }
 
-Token *
+TokenPtr
 Lexer::build_token ()
 {
   for (;;)
@@ -389,13 +383,13 @@ Lexer::build_token ()
     }
 }
 
-const Token *
+const_TokenPtr
 Lexer::peek_token (int n)
 {
   return token_queue.peek (n);
 }
 
-const Token *
+const_TokenPtr
 Lexer::peek_token ()
 {
   return peek_token (0);

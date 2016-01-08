@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include <tr1/memory>
+
 namespace Tiny
 {
 // TINY_TOKEN(name, description)
@@ -73,6 +75,10 @@ enum /* class */ TokenId
 const char *get_token_description (TokenId tid);
 const char *token_id_to_str (TokenId tid);
 
+struct Token;
+typedef std::tr1::shared_ptr<Token> TokenPtr;
+typedef std::tr1::shared_ptr<const Token> const_TokenPtr;
+
 struct Token
 {
 private:
@@ -98,34 +104,34 @@ private:
 public:
   ~Token () { delete str; }
 
-  static Token *
+  static TokenPtr
   make (TokenId token_id, location_t locus)
   {
-    return new Token (token_id, locus);
+    return TokenPtr(new Token (token_id, locus));
   }
 
-  static Token *
+  static TokenPtr
   make_identifier (location_t locus, const char *str)
   {
-    return new Token (IDENTIFIER, locus, str);
+    return TokenPtr(new Token (IDENTIFIER, locus, str));
   }
 
-  static Token *
+  static TokenPtr
   make_integer (location_t locus, const char *str)
   {
-    return new Token (INTEGER_LITERAL, locus, str);
+    return TokenPtr(new Token (INTEGER_LITERAL, locus, str));
   }
 
-  static Token *
+  static TokenPtr
   make_real (location_t locus, const char *str)
   {
-    return new Token (REAL_LITERAL, locus, str);
+    return TokenPtr(new Token (REAL_LITERAL, locus, str));
   }
 
-  static Token *
+  static TokenPtr
   make_string (location_t locus, const char *str)
   {
-    return new Token (STRING_LITERAL, locus, str);
+    return TokenPtr(new Token (STRING_LITERAL, locus, str));
   }
 
   TokenId
@@ -175,14 +181,14 @@ private:
 
   TokenId classify_keyword (const char *);
 
-  Token *build_token ();
+  TokenPtr build_token ();
 
 public:
   Lexer (const char *filename, FILE *input);
   ~Lexer ();
 
-  const Token *peek_token ();
-  const Token *peek_token (int);
+  const_TokenPtr peek_token ();
+  const_TokenPtr peek_token (int);
 
   void skip_token ();
   void skip_token (int);
@@ -198,6 +204,8 @@ private:
 
   struct InputSource
   {
+    typedef int type;
+
     FILE *input;
     InputSource (FILE *input_) : input (input_) {}
     int operator() () { return fgetc (input); }
@@ -207,20 +215,18 @@ private:
 
   struct TokenSource
   {
+    typedef TokenPtr type;
+
     Lexer *lexer;
     TokenSource (Lexer *lexer_) : lexer (lexer_) {}
-    Token *operator() ()
+    TokenPtr operator() ()
     {
-      Token *t = lexer->build_token ();
-      lexer->token_seq.push_back (t);
-      return t;
+      return lexer->build_token ();
     }
   };
 
   TokenSource token_source;
-  buffered_queue<Token *, TokenSource> token_queue;
-
-  std::vector<Token *> token_seq;
+  buffered_queue<std::tr1::shared_ptr<Token>, TokenSource> token_queue;
 };
 }
 

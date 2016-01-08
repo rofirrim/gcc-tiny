@@ -64,6 +64,12 @@ public:
   {
     peek (n);
 
+    for (int i = 0; i < (n + 1); i++)
+      {
+	// Clear the value
+	buffer[start + i] = typename Source::type ();
+      }
+
     start += (n + 1);
 
     gcc_assert (0 <= start);
