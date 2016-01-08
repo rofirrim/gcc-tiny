@@ -64,7 +64,7 @@ Lexer::skip_input ()
 namespace
 {
 
-const char *keyword_index[] = {
+const std::string keyword_index[] = {
 #define TINY_TOKEN(x, y)
 #define TINY_TOKEN_KEYWORD(name, keyword) keyword,
   TINY_TOKEN_LIST
@@ -81,23 +81,15 @@ TokenId keyword_keys[] = {
 };
 
 const int num_keywords = sizeof (keyword_index) / sizeof (*keyword_index);
-
-bool
-strless (const char *str1, const char *str2)
-{
-  return strcmp (str1, str2) < 0;
-}
 }
 
 TokenId
 Lexer::classify_keyword (const std::string &str)
 {
-  const char *c_str = str.c_str ();
+  const std::string *last = keyword_index + num_keywords;
+  const std::string *idx = std::lower_bound (keyword_index, last, str);
 
-  const char **last = keyword_index + num_keywords;
-  const char **idx = std::lower_bound (keyword_index, last, c_str, strless);
-
-  if (idx == last || strcmp (c_str, *idx) != 0)
+  if (idx == last || str != *idx)
     return IDENTIFIER;
   else
     {
