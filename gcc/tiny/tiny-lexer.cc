@@ -13,14 +13,13 @@ namespace Tiny
 {
 
 Lexer::Lexer (const char *filename, FILE *input_)
-  : input (input_), current_line (1), current_column (0), line_map (0),
+  : input (input_), current_line (1), current_column (1), line_map (0),
     input_source (input), input_queue (input_source), token_source (this),
     token_queue (token_source)
 {
   line_map = ::linemap_add (::line_table, ::LC_ENTER,
 			    /* sysp */ 0, filename,
 			    /* current_line */ 1);
-  linemap_line_start (::line_table, /* to_line */ 1, max_column_hint);
 }
 
 Lexer::~Lexer ()
