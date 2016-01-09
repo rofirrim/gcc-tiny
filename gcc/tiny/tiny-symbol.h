@@ -42,7 +42,7 @@ public:
   void
   set_tree_decl (Tree decl_)
   {
-    gcc_assert (decl.get_tree_code() == VAR_DECL);
+    gcc_assert (decl_.get_tree_code() == VAR_DECL);
     decl = decl_;
   }
 

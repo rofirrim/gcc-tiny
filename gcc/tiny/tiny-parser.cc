@@ -82,11 +82,11 @@ private:
 
   struct TreeScope
   {
-      Tree bind_expr;
-      Tree block;
+    Tree bind_expr;
+    Tree block;
   };
 
-  TreeScope leave_scope();
+  TreeScope leave_scope ();
 
   Symbol *query_variable (const std::string &name, location_t loc);
   Symbol *query_integer_variable (const std::string &name, location_t loc);
@@ -123,9 +123,7 @@ private:
 #undef BINARY_HANDLER
 
 public:
-  Parser (Lexer &lexer_)
-    : lexer (lexer_), puts_fn (NULL_TREE), printf_fn (NULL_TREE),
-      scanf_fn (NULL_TREE)
+  Parser (Lexer &lexer_) : lexer (lexer_), puts_fn (), printf_fn (), scanf_fn ()
   {
   }
 
@@ -154,9 +152,9 @@ private:
 
   tree main_fndecl;
 
-  tree puts_fn;
-  tree printf_fn;
-  tree scanf_fn;
+  Tree puts_fn;
+  Tree printf_fn;
+  Tree scanf_fn;
 
   std::vector<TreeStmtList> stack_stmt_list;
   std::vector<TreeChain> stack_var_decl_chain;
@@ -249,16 +247,16 @@ Parser::parse_program ()
 	      build_int_cst_type (integer_type_node, 0));
   tree return_stmt = build1 (RETURN_EXPR, void_type_node, set_result);
 
-  get_current_stmt_list().append(return_stmt);
+  get_current_stmt_list ().append (return_stmt);
 
   // Leave top level scope, get its binding expression and its main block
-  tree main_block = NULL_TREE;
-  TreeScope tree_scope = leave_scope();
+  TreeScope main_tree_scope = leave_scope ();
+  Tree main_block = main_tree_scope.block;
 
   // Finish main function
-  BLOCK_SUPERCONTEXT (main_block) = main_fndecl;
-  DECL_INITIAL (main_fndecl) = main_block;
-  DECL_SAVED_TREE (main_fndecl) = tree_scope.bind_expr.get_tree();
+  BLOCK_SUPERCONTEXT (main_block.get_tree ()) = main_fndecl;
+  DECL_INITIAL (main_fndecl) = main_block.get_tree ();
+  DECL_SAVED_TREE (main_fndecl) = main_tree_scope.bind_expr.get_tree ();
 
   DECL_EXTERNAL (main_fndecl) = 0;
   DECL_PRESERVE_P (main_fndecl) = 1;
@@ -319,7 +317,7 @@ Parser::parse_statement_seq (bool (Parser::*done) ())
   while (!(this->*done) ())
     {
       Tree stmt = parse_statement ();
-      get_current_stmt_list().append(stmt);
+      get_current_stmt_list ().append (stmt);
     }
 }
 
@@ -347,8 +345,10 @@ Parser::leave_scope ()
   BlockChain subblocks = stack_block_chain.back ();
   stack_block_chain.pop_back ();
 
-  tree new_block = build_block (var_decl_chain.first.get_tree(), subblocks.first.get_tree(),
-			   /* supercontext */ NULL_TREE, /* chain */ NULL_TREE);
+  tree new_block
+    = build_block (var_decl_chain.first.get_tree (),
+		   subblocks.first.get_tree (),
+		   /* supercontext */ NULL_TREE, /* chain */ NULL_TREE);
 
   // Add the new block to the current chain of blocks (if any)
   if (!stack_block_chain.empty ())
@@ -357,12 +357,13 @@ Parser::leave_scope ()
     }
 
   // Set the subblocks to have the new block as their parent
-  for (tree it = subblocks.first.get_tree(); it != NULL_TREE; it = BLOCK_CHAIN (it))
+  for (tree it = subblocks.first.get_tree (); it != NULL_TREE;
+       it = BLOCK_CHAIN (it))
     BLOCK_SUPERCONTEXT (it) = new_block;
 
   tree bind_expr = build3 (BIND_EXPR, void_type_node, NULL_TREE,
-			   current_stmt_list.get_tree(), new_block);
-  BIND_EXPR_VARS (bind_expr) = var_decl_chain.first.get_tree();
+			   current_stmt_list.get_tree (), new_block);
+  BIND_EXPR_VARS (bind_expr) = var_decl_chain.first.get_tree ();
 
   TreeScope tree_scope;
   tree_scope.bind_expr = bind_expr;
@@ -670,32 +671,32 @@ Parser::build_if_statement (Tree bool_expr, Tree then_part, Tree else_part)
   Tree cond_expr
     = build_tree (COND_EXPR, bool_expr.get_locus (), void_type_node, bool_expr,
 		  goto_then, goto_else_or_endif);
-  stmt_list.append(cond_expr);
+  stmt_list.append (cond_expr);
 
   Tree then_label_expr = build_tree (LABEL_EXPR, then_part.get_locus (),
 				     void_type_node, then_label_decl);
-  stmt_list.append(then_label_expr);
+  stmt_list.append (then_label_expr);
 
-  stmt_list.append(then_part);
+  stmt_list.append (then_part);
 
   if (!else_part.is_null ())
     {
       // Make sure after then part has been executed we go to the end if
-      stmt_list.append(goto_endif);
+      stmt_list.append (goto_endif);
 
       Tree else_label_expr = build_tree (LABEL_EXPR, else_part.get_locus (),
 					 void_type_node, else_label_decl);
-      stmt_list.append(else_label_expr);
+      stmt_list.append (else_label_expr);
 
-      stmt_list.append(else_part);
+      stmt_list.append (else_part);
     }
 
   // FIXME - location
   Tree endif_label_expr = build_tree (LABEL_EXPR, UNKNOWN_LOCATION,
 				      void_type_node, endif_label_decl);
-  stmt_list.append(endif_label_expr);
+  stmt_list.append (endif_label_expr);
 
-  return stmt_list.get_tree();
+  return stmt_list.get_tree ();
 }
 
 Tree
@@ -726,7 +727,7 @@ Parser::parse_if_statement ()
 
       enter_scope ();
       parse_statement_seq (&Parser::done_end);
-      TreeScope else_tree_scope = leave_scope();
+      TreeScope else_tree_scope = leave_scope ();
       else_stmt = else_tree_scope.bind_expr;
 
       // Consume 'end'
@@ -760,7 +761,7 @@ Parser::build_while_statement (Tree bool_expr, Tree while_body)
   Tree while_check_label_expr
     = build_tree (LABEL_EXPR, bool_expr.get_locus (), void_type_node,
 		  while_check_label_decl);
-  stmt_list.append(while_check_label_expr);
+  stmt_list.append (while_check_label_expr);
 
   Tree while_body_label_decl
     = build_label_decl ("while_body", while_body.get_locus ());
@@ -774,27 +775,27 @@ Parser::build_while_statement (Tree bool_expr, Tree while_body)
 			      while_body_label_decl),
 		  build_tree (GOTO_EXPR, bool_expr.get_locus (), void_type_node,
 			      end_of_while_label_decl));
-  stmt_list.append(cond_expr);
+  stmt_list.append (cond_expr);
 
   Tree while_body_label_expr
     = build_tree (LABEL_EXPR, while_body.get_locus (), void_type_node,
 		  while_body_label_decl);
-  stmt_list.append(while_body_label_expr);
+  stmt_list.append (while_body_label_expr);
 
-  stmt_list.append(while_body);
+  stmt_list.append (while_body);
 
   // FIXME - location
   Tree goto_check = build_tree (GOTO_EXPR, UNKNOWN_LOCATION, void_type_node,
 				while_check_label_decl);
-  stmt_list.append(goto_check);
+  stmt_list.append (goto_check);
 
   // FIXME - location
   Tree end_of_while_label_expr
     = build_tree (LABEL_EXPR, UNKNOWN_LOCATION, void_type_node,
 		  end_of_while_label_decl);
-  stmt_list.append(end_of_while_label_expr);
+  stmt_list.append (end_of_while_label_expr);
 
-  return stmt_list.get_tree();
+  return stmt_list.get_tree ();
 }
 
 Tree
@@ -845,7 +846,7 @@ Parser::build_for_statement (Symbol *ind_var, Tree lower_bound,
 
   Tree init_ind_var = build_tree (MODIFY_EXPR, /* FIXME */ UNKNOWN_LOCATION,
 				  void_type_node, ind_var_decl, lower_bound);
-  stmt_list.append(init_ind_var);
+  stmt_list.append (init_ind_var);
 
   // ind_var <= upper
   Tree while_condition
@@ -863,13 +864,14 @@ Parser::build_for_statement (Symbol *ind_var, Tree lower_bound,
 
   // Wrap as a stmt list
   TreeStmtList for_stmt_list = for_body_stmt_list;
-  for_stmt_list.append(incr_ind_var);
+  for_stmt_list.append (incr_ind_var);
 
   // construct the associated while statement
-  Tree while_stmt = build_while_statement (while_condition, for_stmt_list.get_tree());
-  stmt_list.append(while_stmt);
+  Tree while_stmt
+    = build_while_statement (while_condition, for_stmt_list.get_tree ());
+  stmt_list.append (while_stmt);
 
-  return stmt_list.get_tree();
+  return stmt_list.get_tree ();
 }
 
 Tree
@@ -928,7 +930,7 @@ Parser::parse_for_statement ()
 Tree
 Parser::get_scanf_addr ()
 {
-  if (scanf_fn == NULL_TREE)
+  if (scanf_fn.is_null ())
     {
       tree fndecl_type_param[] = {
 	build_pointer_type (
@@ -939,10 +941,11 @@ Parser::get_scanf_addr ()
 	= build_varargs_function_type_array (integer_type_node, 1,
 					     fndecl_type_param);
 
-      scanf_fn = build_fn_decl ("scanf", fndecl_type);
-      DECL_EXTERNAL (scanf_fn) = 1;
+      tree scanf_fn_decl = build_fn_decl ("scanf", fndecl_type);
+      DECL_EXTERNAL (scanf_fn_decl) = 1;
 
-      scanf_fn = build1 (ADDR_EXPR, build_pointer_type (fndecl_type), scanf_fn);
+      scanf_fn
+	= build1 (ADDR_EXPR, build_pointer_type (fndecl_type), scanf_fn_decl);
     }
 
   return scanf_fn;
@@ -994,9 +997,10 @@ Parser::parse_read_statement ()
 
   tree args[]
     = {build_string_literal (strlen (format) + 1, format),
-        // FIXME
+       // FIXME
        build_tree (ADDR_EXPR, first_of_expr->get_locus (),
-		   build_pointer_type (expr.get_type ().get_tree ()), expr).get_tree()};
+		   build_pointer_type (expr.get_type ().get_tree ()), expr)
+	 .get_tree ()};
 
   Tree scanf_fn = get_scanf_addr ();
 
@@ -1010,7 +1014,7 @@ Parser::parse_read_statement ()
 Tree
 Parser::get_puts_addr ()
 {
-  if (puts_fn == NULL_TREE)
+  if (puts_fn.is_null ())
     {
       tree fndecl_type_param[] = {
 	build_pointer_type (
@@ -1020,10 +1024,11 @@ Parser::get_puts_addr ()
       tree fndecl_type
 	= build_function_type_array (integer_type_node, 1, fndecl_type_param);
 
-      puts_fn = build_fn_decl ("puts", fndecl_type);
-      DECL_EXTERNAL (puts_fn) = 1;
+      tree puts_fn_decl = build_fn_decl ("puts", fndecl_type);
+      DECL_EXTERNAL (puts_fn_decl) = 1;
 
-      puts_fn = build1 (ADDR_EXPR, build_pointer_type (fndecl_type), puts_fn);
+      puts_fn
+	= build1 (ADDR_EXPR, build_pointer_type (fndecl_type), puts_fn_decl);
     }
 
   return puts_fn;
@@ -1032,7 +1037,7 @@ Parser::get_puts_addr ()
 Tree
 Parser::get_printf_addr ()
 {
-  if (printf_fn == NULL_TREE)
+  if (printf_fn.is_null ())
     {
       tree fndecl_type_param[] = {
 	build_pointer_type (
@@ -1043,11 +1048,11 @@ Parser::get_printf_addr ()
 	= build_varargs_function_type_array (integer_type_node, 1,
 					     fndecl_type_param);
 
-      printf_fn = build_fn_decl ("printf", fndecl_type);
-      DECL_EXTERNAL (printf_fn) = 1;
+      tree printf_fn_decl = build_fn_decl ("printf", fndecl_type);
+      DECL_EXTERNAL (printf_fn_decl) = 1;
 
       printf_fn
-	= build1 (ADDR_EXPR, build_pointer_type (fndecl_type), printf_fn);
+	= build1 (ADDR_EXPR, build_pointer_type (fndecl_type), printf_fn_decl);
     }
 
   return printf_fn;
@@ -1341,8 +1346,8 @@ Parser::null_denotation (const_TokenPtr tok)
 Tree
 Parser::coerce_binary_arithmetic (const_TokenPtr tok, Tree *left, Tree *right)
 {
-  Tree left_type = left->get_type();
-  Tree right_type = right->get_type();
+  Tree left_type = left->get_type ();
+  Tree right_type = right->get_type ();
 
   if (left_type.is_error () || right_type.is_error ())
     return Tree::error ();
