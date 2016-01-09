@@ -43,52 +43,6 @@ along with GCC; see the file COPYING3.  If not see
 namespace Tiny
 {
 
-namespace
-{
-// FIXME - Move this to a helper file or, better, see if this already exists
-// in GCC
-template <typename Append> struct TreeChainBase
-{
-  Tree first;
-  Tree last;
-
-  TreeChainBase () : first (), last () {}
-
-  void
-  append (Tree t)
-  {
-    gcc_assert (!t.is_null());
-    if (first.is_null())
-      {
-	first = last = t;
-      }
-    else
-      {
-	Append () (last, t);
-	last = t;
-      }
-  }
-};
-
-struct tree_chain_append
-{
-  void operator() (Tree t, Tree a) { TREE_CHAIN (t.get_tree()) = a.get_tree(); }
-};
-
-struct TreeChain : TreeChainBase<tree_chain_append>
-{
-};
-
-struct block_chain_append
-{
-  void operator() (Tree t, Tree a) { BLOCK_CHAIN (t.get_tree()) = a.get_tree(); }
-};
-
-struct BlockChain : TreeChainBase<block_chain_append>
-{
-};
-}
-
 struct Parser
 {
 private:
