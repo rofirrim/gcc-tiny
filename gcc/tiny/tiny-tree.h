@@ -5,6 +5,7 @@
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
+#include "tree-iterator.h"
 #include "input.h"
 
 namespace Tiny
@@ -13,6 +14,7 @@ namespace Tiny
 // This wrapper is similar to cp_tree used in C++ FE
 // and is used to keep a location for those trees
 // that do not have it
+//
 struct Tree
 {
 public:
@@ -81,6 +83,53 @@ private:
 
 inline bool operator==(Tree t1, Tree t2) { return t1.get_tree () == t2.get_tree (); }
 inline bool operator!=(Tree t1, Tree t2) { return !(t1 == t2); }
+
+inline Tree build_tree(tree_code tc, location_t loc, Tree type, Tree t1)
+{
+    return build1_loc(loc, tc, type.get_tree(), t1.get_tree());
+}
+
+inline Tree build_tree(tree_code tc, location_t loc, Tree type, Tree t1, Tree t2)
+{
+    return build2_loc(loc, tc, type.get_tree(), t1.get_tree(), t2.get_tree());
+}
+
+inline Tree build_tree(tree_code tc, location_t loc, Tree type, Tree t1, Tree t2, Tree t3)
+{
+    return build3_loc(loc, tc, type.get_tree(), t1.get_tree(), t2.get_tree(), t3.get_tree());
+}
+
+inline Tree build_tree(tree_code tc, location_t loc, Tree type, Tree t1, Tree t2, Tree t3, Tree t4)
+{
+    return build4_loc(loc, tc, type.get_tree(), t1.get_tree(), t2.get_tree(), t3.get_tree(), t4.get_tree());
+}
+
+inline Tree build_tree(tree_code tc, location_t loc, Tree type, Tree t1, Tree t2, Tree t3, Tree t4, Tree t5)
+{
+    return build5_loc(loc, tc, type.get_tree(), t1.get_tree(), t2.get_tree(), t3.get_tree(), t4.get_tree(), t5.get_tree());
+}
+
+// Adapter for TREE_LIST
+struct TreeStmtList
+{
+public:
+  TreeStmtList () : list (alloc_stmt_list ()) {}
+  TreeStmtList (Tree t) : list (t.get_tree()) {}
+
+  void append(Tree t)
+  {
+      append_to_statement_list(t.get_tree(), &list);
+  }
+
+  tree
+  get_tree () const
+  {
+    return list;
+  }
+
+private:
+  tree list;
+};
 }
 
 #endif // TINY_TREE_H
