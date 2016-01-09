@@ -1,10 +1,13 @@
 #ifndef TINY_SYMBOL_H
 #define TINY_SYMBOL_H
 
+#include "tiny/tiny-tree.h"
+
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
 #include "tree.h"
+
 
 namespace Tiny
 {
@@ -37,13 +40,13 @@ public:
   }
 
   void
-  set_tree_decl (tree decl_)
+  set_tree_decl (Tree decl_)
   {
-    gcc_assert (TREE_CODE (decl_) == VAR_DECL);
+    gcc_assert (decl.get_tree_code() == VAR_DECL);
     decl = decl_;
   }
 
-  tree
+  Tree
   get_tree_decl () const
   {
     return decl;
@@ -52,7 +55,7 @@ public:
 private:
   std::string name;
   std::string global_name;
-  tree decl;
+  Tree decl;
 };
 }
 

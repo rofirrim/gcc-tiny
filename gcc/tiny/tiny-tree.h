@@ -39,6 +39,12 @@ public:
     return t;
   }
 
+  tree_code
+  get_tree_code () const
+  {
+    return TREE_CODE (t);
+  }
+
   void
   set_tree (tree t_)
   {
@@ -63,10 +69,18 @@ public:
     return Tree (error_mark_node);
   }
 
+  Tree get_type() const
+    {
+      return TREE_TYPE(t);
+    }
+
 private:
   tree t;
   location_t loc;
 };
+
+inline bool operator==(Tree t1, Tree t2) { return t1.get_tree () == t2.get_tree (); }
+inline bool operator!=(Tree t1, Tree t2) { return !(t1 == t2); }
 }
 
 #endif // TINY_TREE_H

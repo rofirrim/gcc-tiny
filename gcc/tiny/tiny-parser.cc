@@ -120,7 +120,7 @@ private:
   Tree build_for_statement (Symbol *ind_var, Tree lower_bound, Tree upper_bound,
 			    Tree for_body_stmt_list);
 
-  const char *print_type (tree type);
+  const char *print_type (Tree type);
 
   tree &get_current_stmt_list ();
   tree &get_current_block ();
@@ -514,18 +514,18 @@ namespace
 {
 
 bool
-is_string_type (tree type)
+is_string_type (Tree type)
 {
-  gcc_assert (TYPE_P (type));
-  return TREE_CODE (type) == POINTER_TYPE
-	 && TYPE_MAIN_VARIANT (TREE_TYPE (type)) == char_type_node;
+  gcc_assert (TYPE_P (type.get_tree ()));
+  return type.get_tree_code () == POINTER_TYPE
+	 && TYPE_MAIN_VARIANT (TREE_TYPE (type.get_tree ())) == char_type_node;
 }
 }
 
 const char *
-Parser::print_type (tree type)
+Parser::print_type (Tree type)
 {
-  gcc_assert (TYPE_P (type));
+  gcc_assert (TYPE_P (type.get_tree ()));
 
   if (type == void_type_node)
     {
@@ -597,10 +597,10 @@ Parser::query_integer_variable (const std::string &name, location_t loc)
   Symbol *sym = query_variable (name, loc);
   if (sym != NULL)
     {
-      tree var_decl = sym->get_tree_decl ();
-      gcc_assert (var_decl != NULL_TREE);
+      Tree var_decl = sym->get_tree_decl ();
+      gcc_assert (!var_decl.is_null ());
 
-      if (TREE_TYPE (var_decl) != integer_type_node)
+      if (var_decl.get_type() != integer_type_node)
 	{
 	  error_at (loc, "variable '%s' does not have integer type",
 		    name.c_str ());
@@ -631,7 +631,7 @@ Parser::parse_assignment_statement ()
     }
 
   gcc_assert (sym->get_tree_decl () != NULL_TREE);
-  tree var_decl = sym->get_tree_decl ();
+  Tree var_decl = sym->get_tree_decl ();
 
   const_TokenPtr assig_tok = expect_token (Tiny::ASSIG);
   if (assig_tok == NULL)
@@ -649,17 +649,17 @@ Parser::parse_assignment_statement ()
   skip_token (Tiny::SEMICOLON);
 
   // FIXME: We may want to allow coercions here
-  if (TREE_TYPE (var_decl) != TREE_TYPE (expr.get_tree ()))
+  if (var_decl.get_type () != expr.get_type ())
     {
       error_at (first_of_expr->get_locus (),
 		"cannot assign value of type %s to variable '%s' of type %s",
-		print_type (TREE_TYPE (expr.get_tree ())),
-		sym->get_name ().c_str (), print_type (TREE_TYPE (var_decl)));
+		print_type (expr.get_type ()), sym->get_name ().c_str (),
+		print_type (var_decl.get_type ()));
       return Tree::error ();
     }
 
   tree assig_expr = build2_loc (assig_tok->get_locus (), MODIFY_EXPR,
-				void_type_node, var_decl, expr.get_tree ());
+				void_type_node, var_decl.get_tree(), expr.get_tree ());
 
   return assig_expr;
 }
@@ -1007,7 +1007,7 @@ Parser::parse_read_statement ()
   if (expr.is_error ())
     return Tree::error ();
 
-  if (TREE_CODE (expr.get_tree ()) != VAR_DECL)
+  if (expr.get_tree_code () != VAR_DECL)
     {
       error_at (first_of_expr->get_locus (),
 		"invalid expression in read statement");
@@ -1018,11 +1018,11 @@ Parser::parse_read_statement ()
   TREE_ADDRESSABLE (expr.get_tree ()) = 1;
 
   const char *format = NULL;
-  if (TREE_TYPE (expr.get_tree ()) == integer_type_node)
+  if (expr.get_type () == integer_type_node)
     {
       format = "%d";
     }
-  else if (TREE_TYPE (expr.get_tree ()) == float_type_node)
+  else if (expr.get_type () == float_type_node)
     {
       format = "%f";
     }
@@ -1030,13 +1030,13 @@ Parser::parse_read_statement ()
     {
       error_at (first_of_expr->get_locus (),
 		"variable of type %s is not a valid read operand",
-		print_type (TREE_TYPE (expr.get_tree ())));
+		print_type (expr.get_type ()));
       return Tree::error ();
     }
 
   tree args[] = {build_string_literal (strlen (format) + 1, format),
 		 build1_loc (first_of_expr->get_locus (), ADDR_EXPR,
-			     build_pointer_type (TREE_TYPE (expr.get_tree ())),
+			     build_pointer_type (expr.get_type ().get_tree ()),
 			     expr.get_tree ())};
 
   Tree scanf_fn = get_scanf_addr ();
@@ -1113,7 +1113,7 @@ Parser::parse_write_statement ()
   if (expr.is_error ())
     return Tree::error ();
 
-  if (TREE_TYPE (expr.get_tree ()) == integer_type_node)
+  if (expr.get_type () == integer_type_node)
     {
       // printf("%d\n", expr)
       const char *format_integer = "%d\n";
@@ -1129,7 +1129,7 @@ Parser::parse_write_statement ()
 
       return stmt;
     }
-  else if (TREE_TYPE (expr.get_tree ()) == float_type_node)
+  else if (expr.get_type () == float_type_node)
     {
       // printf("%f\n", (double)expr)
       const char *format_float = "%f\n";
@@ -1145,7 +1145,7 @@ Parser::parse_write_statement ()
 
       return stmt;
     }
-  else if (is_string_type (TREE_TYPE (expr.get_tree ())))
+  else if (is_string_type (expr.get_type ()))
     {
       // Alternatively we could use printf('%s\n', expr) instead of puts(expr)
       tree args[] = {expr.get_tree ()};
@@ -1161,7 +1161,7 @@ Parser::parse_write_statement ()
     {
       error_at (first_of_expr->get_locus (),
 		"value of type %s is not a valid write operand",
-		print_type (TREE_TYPE (expr.get_tree ())));
+		print_type (expr.get_type ()));
       return Tree::error ();
     }
 
@@ -1325,12 +1325,12 @@ Parser::null_denotation (const_TokenPtr tok)
 	Tree expr = parse_expression (LBP_UNARY_PLUS);
 	if (expr.is_error ())
 	  return Tree::error ();
-	if (TREE_TYPE (expr.get_tree ()) != integer_type_node
-	    || TREE_TYPE (expr.get_tree ()) != float_type_node)
+	if (expr.get_type () != integer_type_node
+	    || expr.get_type () != float_type_node)
 	  {
 	    error_at (tok->get_locus (),
 		      "operand of unary plus must be int or float but it is %s",
-		      print_type (TREE_TYPE (expr.get_tree ())));
+		      print_type (expr.get_type ()));
 	    return Tree::error ();
 	  }
 	return Tree (expr, tok->get_locus ());
@@ -1341,18 +1341,18 @@ Parser::null_denotation (const_TokenPtr tok)
 	if (expr.is_error ())
 	  return Tree::error ();
 
-	if (TREE_TYPE (expr.get_tree ()) != integer_type_node
-	    || TREE_TYPE (expr.get_tree ()) != float_type_node)
+	if (expr.get_type () != integer_type_node
+	    || expr.get_type () != float_type_node)
 	  {
 	    error_at (
 	      tok->get_locus (),
 	      "operand of unary minus must be int or float but it is %s",
-	      print_type (TREE_TYPE (expr.get_tree ())));
+	      print_type (expr.get_type ()));
 	    return Tree::error ();
 	  }
 
 	expr = build1_loc (tok->get_locus (), NEGATE_EXPR,
-			   TREE_TYPE (expr.get_tree ()), expr.get_tree ());
+			   expr.get_type ().get_tree (), expr.get_tree ());
 	return expr;
       }
     case Tiny::NOT:
@@ -1361,11 +1361,11 @@ Parser::null_denotation (const_TokenPtr tok)
 	if (expr.is_error ())
 	  return Tree::error ();
 
-	if (TREE_TYPE (expr.get_tree ()) != boolean_type_node)
+	if (expr.get_type () != boolean_type_node)
 	  {
 	    error_at (tok->get_locus (),
 		      "operand of logical not must be a boolean but it is %s",
-		      print_type (TREE_TYPE (expr.get_tree ())));
+		      print_type (expr.get_type ()));
 	    return Tree::error ();
 	  }
 
@@ -1476,8 +1476,8 @@ Parser::binary_mult (const_TokenPtr tok, Tree left)
   if (tree_type.is_error ())
     return Tree::error ();
 
-  return build2_loc (tok->get_locus (), MULT_EXPR, tree_type.get_tree(), left.get_tree (),
-		     right.get_tree ());
+  return build2_loc (tok->get_locus (), MULT_EXPR, tree_type.get_tree (),
+		     left.get_tree (), right.get_tree ());
 }
 
 Tree
@@ -1487,8 +1487,8 @@ Parser::binary_div (const_TokenPtr tok, Tree left)
   if (right.is_error ())
     return Tree::error ();
 
-  if (TREE_TYPE (left.get_tree()) == integer_type_node
-      && TREE_TYPE (right.get_tree()) == integer_type_node)
+  if (left.get_type () == integer_type_node
+      && right.get_type () == integer_type_node)
     {
       // Integer division (truncating, like in C)
       return build2_loc (tok->get_locus (), TRUNC_DIV_EXPR, integer_type_node,
@@ -1501,9 +1501,9 @@ Parser::binary_div (const_TokenPtr tok, Tree left)
       if (tree_type.is_error ())
 	return Tree::error ();
 
-      gcc_assert (tree_type.get_tree() == float_type_node);
+      gcc_assert (tree_type.get_tree () == float_type_node);
 
-      return build2_loc (tok->get_locus (), RDIV_EXPR, tree_type.get_tree(),
+      return build2_loc (tok->get_locus (), RDIV_EXPR, tree_type.get_tree (),
 			 left.get_tree (), right.get_tree ());
     }
 }
@@ -1515,8 +1515,8 @@ Parser::binary_mod (const_TokenPtr tok, Tree left)
   if (right.is_error ())
     return Tree::error ();
 
-  if (TREE_TYPE (left.get_tree()) == integer_type_node
-      && TREE_TYPE (right.get_tree()) == integer_type_node)
+  if (left.get_type () == integer_type_node
+      && right.get_type () == integer_type_node)
     {
       // Integer division (truncating, like in C)
       return build2_loc (tok->get_locus (), TRUNC_MOD_EXPR, integer_type_node,
@@ -1623,14 +1623,14 @@ Parser::binary_greater_equal (const_TokenPtr tok, Tree left)
 bool
 Parser::check_logical_operands (const_TokenPtr tok, Tree left, Tree right)
 {
-  if (TREE_TYPE (left.get_tree()) != boolean_type_node
-      || TREE_TYPE (right.get_tree()) != boolean_type_node)
+  if (left.get_type () != boolean_type_node
+      || right.get_type () != boolean_type_node)
     {
       error_at (
 	tok->get_locus (),
 	"operands of operator %s must be boolean but they are %s and %s\n",
-	tok->get_token_description (), print_type (TREE_TYPE (left.get_tree())),
-	print_type (TREE_TYPE (right.get_tree())));
+	tok->get_token_description (), print_type (left.get_type ()),
+	print_type (right.get_type ()));
       return false;
     }
 
@@ -1693,11 +1693,11 @@ Parser::parse_boolean_expression ()
   if (expr.is_error ())
     return expr;
 
-  if (TREE_TYPE (expr.get_tree()) != boolean_type_node)
+  if (expr.get_type () != boolean_type_node)
     {
-      error_at (expr.get_locus(),
+      error_at (expr.get_locus (),
 		"expected expression of boolean type but its type is %s",
-		print_type (TREE_TYPE (expr.get_tree())));
+		print_type (expr.get_type ()));
       return Tree::error ();
     }
   return expr;
@@ -1710,11 +1710,11 @@ Parser::parse_integer_expression ()
   if (expr.is_error ())
     return expr;
 
-  if (TREE_TYPE (expr.get_tree()) != integer_type_node)
+  if (expr.get_type () != integer_type_node)
     {
-      error_at (expr.get_locus(),
+      error_at (expr.get_locus (),
 		"expected expression of integer type but its type is %s",
-		print_type (TREE_TYPE (expr.get_tree())));
+		print_type (expr.get_type ()));
       return Tree::error ();
     }
   return expr;
