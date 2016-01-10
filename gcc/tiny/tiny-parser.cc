@@ -1125,19 +1125,17 @@ Tree
 Parser::parse_expression (int right_binding_power)
 {
   const_TokenPtr current_token = lexer.peek_token ();
-  lexer.skip_token (); // This is silly but it matches the code below
-  const_TokenPtr next_token = lexer.peek_token ();
+  lexer.skip_token ();
 
   Tree expr = null_denotation (current_token);
 
   if (expr.is_error ())
     return Tree::error ();
 
-  while (right_binding_power < left_binding_power (next_token))
+  while (right_binding_power < left_binding_power (lexer.peek_token ()))
     {
-      current_token = next_token;
+      current_token = lexer.peek_token();
       lexer.skip_token ();
-      next_token = lexer.peek_token ();
 
       expr = left_denotation (current_token, expr);
       if (expr.is_error ())
