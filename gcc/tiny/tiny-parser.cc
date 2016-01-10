@@ -1155,7 +1155,7 @@ enum binding_powers
   LBP_HIGHEST = 100,
 
   LBP_UNARY_PLUS = 50,  // Used only when the null denotation is +
-  LBP_UNARY_MINUS = 50, // Used only when the null denotation is -
+  LBP_UNARY_MINUS = LBP_UNARY_PLUS, // Used only when the null denotation is -
 
   LBP_MUL = 40,
   LBP_DIV = LBP_MUL,
@@ -1172,8 +1172,8 @@ enum binding_powers
   LBP_GREATER_EQUAL = LBP_EQUAL,
 
   LBP_LOGICAL_AND = 10,
-  LBP_LOGICAL_OR = 10,
-  LBP_LOGICAL_NOT = 10,
+  LBP_LOGICAL_OR = LBP_LOGICAL_AND,
+  LBP_LOGICAL_NOT = LBP_LOGICAL_AND,
 
   // Lowest priority
   LBP_LOWEST = 0,
