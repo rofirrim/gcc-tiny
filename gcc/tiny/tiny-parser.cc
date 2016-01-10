@@ -212,7 +212,7 @@ Parser::expect_token (Tiny::TokenId token_id)
 bool
 Parser::skip_token (Tiny::TokenId token_id)
 {
-  return expect_token (token_id) != NULL;
+  return expect_token (token_id) != const_TokenPtr();
 }
 
 void
@@ -274,40 +274,22 @@ bool
 Parser::done_end_of_file ()
 {
   const_TokenPtr t = lexer.peek_token ();
-  bool done = false;
-  if (t->get_id () == Tiny::END_OF_FILE)
-    {
-      done = true;
-    }
-
-  return done;
+  return (t->get_id () == Tiny::END_OF_FILE);
 }
 
 bool
 Parser::done_end ()
 {
   const_TokenPtr t = lexer.peek_token ();
-  bool done = false;
-  if (t->get_id () == Tiny::END || t->get_id () == Tiny::END_OF_FILE)
-    {
-      done = true;
-    }
-
-  return done;
+  return (t->get_id () == Tiny::END || t->get_id () == Tiny::END_OF_FILE);
 }
 
 bool
 Parser::done_end_or_else ()
 {
   const_TokenPtr t = lexer.peek_token ();
-  bool done = false;
-  if (t->get_id () == Tiny::END || t->get_id () == Tiny::ELSE
-      || t->get_id () == Tiny::END_OF_FILE)
-    {
-      done = true;
-    }
-
-  return done;
+  return (t->get_id () == Tiny::END || t->get_id () == Tiny::ELSE
+	  || t->get_id () == Tiny::END_OF_FILE);
 }
 
 void
@@ -414,11 +396,15 @@ Parser::parse_statement ()
       break;
     case Tiny::IDENTIFIER:
       return parse_assignment_statement ();
+      break;
     default:
       unexpected_token (t);
       skip_after_semicolon ();
       return Tree::error ();
+      break;
     }
+
+  gcc_unreachable ();
 }
 
 Tree
@@ -446,10 +432,13 @@ Parser::parse_variable_declaration ()
 
   Tree type_tree = parse_type ();
 
-  skip_token (Tiny::SEMICOLON);
-
   if (type_tree.is_error ())
-    return Tree::error ();
+    {
+      skip_after_semicolon();
+      return Tree::error ();
+    }
+
+  skip_token (Tiny::SEMICOLON);
 
   if (context.scope ().query_in_scope (identifier->get_str ()))
     {
@@ -538,7 +527,6 @@ Parser::parse_type ()
       break;
     default:
       unexpected_token (t);
-      skip_after_semicolon ();
       return Tree::error ();
       break;
     }
