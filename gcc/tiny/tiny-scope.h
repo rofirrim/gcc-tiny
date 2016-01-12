@@ -1,8 +1,8 @@
 #ifndef TINY_SCOPE_H
 #define TINY_SCOPE_H
 
-#include "tiny/tiny-symbol.h"
-#include <map>
+#include "tiny-symbol-mapping.h"
+#include <vector>
 
 namespace Tiny
 {
@@ -10,21 +10,27 @@ namespace Tiny
 struct Scope
 {
 public:
-  Scope (Scope *enclosing_, int scope_id_)
-    : enclosing (enclosing_), scope_id (scope_id_)
+  SymbolMapping &
+  scope ()
   {
+    return *(current_scope.back ());
   }
 
-  void insert (Symbol *s);
-  Symbol *query_in_scope (const std::string &str);
-  Symbol *query (const std::string &str);
+  SymbolMapping &
+  get_top_level_scope ()
+  {
+    gcc_assert (!current_scope.empty ());
+    return *(current_scope.front ());
+  }
+
+  void push_scope ();
+  void pop_scope ();
+
+  Scope ();
 
 private:
-  Scope *enclosing;
-  int scope_id;
-
-  typedef std::map<std::string, Symbol *> Map;
-  Map map;
+  std::vector<SymbolMapping *> current_scope;
+  static int scope_id;
 };
 
 }

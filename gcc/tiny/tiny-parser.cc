@@ -21,8 +21,8 @@ along with GCC; see the file COPYING3.  If not see
 #include "tiny/tiny-lexer.h"
 #include "tiny/tiny-tree.h"
 #include "tiny/tiny-symbol.h"
+#include "tiny/tiny-symbol-mapping.h"
 #include "tiny/tiny-scope.h"
-#include "tiny/tiny-context.h"
 
 #include "config.h"
 #include "system.h"
@@ -80,13 +80,13 @@ private:
 
   void enter_scope ();
 
-  struct TreeScope
+  struct TreeSymbolMapping
   {
     Tree bind_expr;
     Tree block;
   };
 
-  TreeScope leave_scope ();
+  TreeSymbolMapping leave_scope ();
 
   Symbol *query_variable (const std::string &name, location_t loc);
   Symbol *query_integer_variable (const std::string &name, location_t loc);
@@ -148,7 +148,7 @@ public:
 
 private:
   Lexer &lexer;
-  Context context;
+  Scope context;
 
   tree main_fndecl;
 
@@ -250,7 +250,7 @@ Parser::parse_program ()
   get_current_stmt_list ().append (return_stmt);
 
   // Leave top level scope, get its binding expression and its main block
-  TreeScope main_tree_scope = leave_scope ();
+  TreeSymbolMapping main_tree_scope = leave_scope ();
   Tree main_block = main_tree_scope.block;
 
   // Finish main function
@@ -315,7 +315,7 @@ Parser::enter_scope ()
   stack_block_chain.push_back (BlockChain ());
 }
 
-Parser::TreeScope
+Parser::TreeSymbolMapping
 Parser::leave_scope ()
 {
   TreeStmtList current_stmt_list = get_current_stmt_list ();
@@ -347,7 +347,7 @@ Parser::leave_scope ()
 			   current_stmt_list.get_tree (), new_block);
   BIND_EXPR_VARS (bind_expr) = var_decl_chain.first.get_tree ();
 
-  TreeScope tree_scope;
+  TreeSymbolMapping tree_scope;
   tree_scope.bind_expr = bind_expr;
   tree_scope.block = new_block;
 
@@ -703,7 +703,7 @@ Parser::parse_if_statement ()
   enter_scope ();
   parse_statement_seq (&Parser::done_end_or_else);
 
-  TreeScope then_tree_scope = leave_scope ();
+  TreeSymbolMapping then_tree_scope = leave_scope ();
   Tree then_stmt = then_tree_scope.bind_expr;
 
   Tree else_stmt;
@@ -715,7 +715,7 @@ Parser::parse_if_statement ()
 
       enter_scope ();
       parse_statement_seq (&Parser::done_end);
-      TreeScope else_tree_scope = leave_scope ();
+      TreeSymbolMapping else_tree_scope = leave_scope ();
       else_stmt = else_tree_scope.bind_expr;
 
       // Consume 'end'
@@ -804,7 +804,7 @@ Parser::parse_while_statement ()
 
   enter_scope ();
   parse_statement_seq (&Parser::done_end);
-  TreeScope while_body_tree_scope = leave_scope ();
+  TreeSymbolMapping while_body_tree_scope = leave_scope ();
 
   Tree while_body_stmt = while_body_tree_scope.bind_expr;
 
@@ -903,7 +903,7 @@ Parser::parse_for_statement ()
   enter_scope ();
   parse_statement_seq (&Parser::done_end);
 
-  TreeScope for_body_tree_scope = leave_scope ();
+  TreeSymbolMapping for_body_tree_scope = leave_scope ();
   Tree for_body_stmt = for_body_tree_scope.bind_expr;
 
   skip_token (Tiny::END);

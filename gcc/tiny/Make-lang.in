@@ -63,8 +63,8 @@ tiny_OBJS = \
     tiny/tiny-token.o \
     tiny/tiny-lexer.o \
     tiny/tiny-symbol.o \
+    tiny/tiny-symbol-mapping.o \
     tiny/tiny-scope.o \
-    tiny/tiny-context.o \
     tiny/tiny-convert.o \
     $(END)
 
