@@ -26,19 +26,6 @@ public:
     return name;
   }
 
-  std::string
-  get_global_name () const
-  {
-    gcc_assert (global_name.size () > 0);
-    return global_name;
-  }
-
-  void
-  set_global_name (const std::string &global_name_)
-  {
-    global_name = global_name_;
-  }
-
   void
   set_tree_decl (Tree decl_)
   {
@@ -54,7 +41,6 @@ public:
 
 private:
   std::string name;
-  std::string global_name;
   Tree decl;
 };
 }

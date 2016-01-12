@@ -28,6 +28,8 @@ public:
 
   Scope ();
 
+  Symbol *query (const std::string &str);
+
 private:
   std::vector<SymbolMapping *> current_scope;
   static int scope_id;

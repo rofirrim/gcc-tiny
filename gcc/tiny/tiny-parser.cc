@@ -148,7 +148,7 @@ public:
 
 private:
   Lexer &lexer;
-  Scope context;
+  Scope scope;
 
   tree main_fndecl;
 
@@ -306,7 +306,7 @@ Parser::parse_statement_seq (bool (Parser::*done) ())
 void
 Parser::enter_scope ()
 {
-  context.push_scope ();
+  scope.push_scope ();
 
   TreeStmtList stmt_list;
   stack_stmt_list.push_back (stmt_list);
@@ -440,17 +440,17 @@ Parser::parse_variable_declaration ()
 
   skip_token (Tiny::SEMICOLON);
 
-  if (context.scope ().query_in_scope (identifier->get_str ()))
+  if (scope.scope ().get (identifier->get_str ()))
     {
       error_at (identifier->get_locus (),
 		"variable '%s' already declared in this scope",
 		identifier->get_str ().c_str ());
     }
   Symbol *sym = new Symbol (identifier->get_str ());
-  context.scope ().insert (sym);
+  scope.scope ().insert (sym);
 
   Tree decl = build_decl (identifier->get_locus (), VAR_DECL,
-			  get_identifier (sym->get_global_name ().c_str ()),
+			  get_identifier (sym->get_name ().c_str ()),
 			  type_tree.get_tree ());
 
   gcc_assert (!stack_var_decl_chain.empty ());
@@ -535,7 +535,7 @@ Parser::parse_type ()
 Symbol *
 Parser::query_variable (const std::string &name, location_t loc)
 {
-  Symbol *sym = context.scope ().query (name);
+  Symbol *sym = scope.query (name);
   if (sym == NULL)
     {
       error_at (loc, "variable '%s' not declared in the current scope",
@@ -1225,7 +1225,7 @@ Parser::null_denotation (const_TokenPtr tok)
     {
     case Tiny::IDENTIFIER:
       {
-	Symbol *s = context.scope ().query (tok->get_str ());
+	Symbol *s = scope.query (tok->get_str ());
 	if (s == NULL)
 	  {
 	    error_at (tok->get_locus (),

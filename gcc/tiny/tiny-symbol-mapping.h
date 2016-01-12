@@ -10,18 +10,21 @@ namespace Tiny
 struct SymbolMapping
 {
 public:
-  SymbolMapping (SymbolMapping *enclosing_, int scope_id_)
-    : enclosing (enclosing_), scope_id (scope_id_)
+  SymbolMapping (SymbolMapping *enclosing_)
+    : enclosing (enclosing_)
   {
   }
 
   void insert (Symbol *s);
-  Symbol *query_in_scope (const std::string &str);
-  Symbol *query (const std::string &str);
+  Symbol *get (const std::string &str) const;
+
+  SymbolMapping* get_enclosing() const
+    {
+      return enclosing;
+    }
 
 private:
   SymbolMapping *enclosing;
-  int scope_id;
 
   typedef std::map<std::string, Symbol *> Map;
   Map map;
