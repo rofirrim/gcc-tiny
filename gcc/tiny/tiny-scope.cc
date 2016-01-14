@@ -10,28 +10,26 @@ Scope::Scope ()
 void
 Scope::push_scope ()
 {
-  SymbolMapping *new_sc = new SymbolMapping (current_scope.empty() ? NULL : &scope ());
-  current_scope.push_back (new_sc);
+  map_stack.push_back (SymbolMapping());
 }
 
 void
 Scope::pop_scope ()
 {
-  gcc_assert (!current_scope.empty());
-  current_scope.pop_back ();
+  gcc_assert (!map_stack.empty());
+  map_stack.pop_back ();
 }
 
 Symbol *
-Scope::query (const std::string &str)
+Scope::lookup (const std::string &str)
 {
-  const SymbolMapping *sc = &this->scope();
-  while (sc != NULL)
+  for (MapStack::reverse_iterator map = map_stack.rbegin ();
+       map != map_stack.rend (); map++)
     {
-      if (Symbol *sym = sc->get (str))
+      if (Symbol *sym = map->get (str))
 	{
 	  return sym;
 	}
-      sc = sc->get_enclosing();
     }
   return NULL;
 }

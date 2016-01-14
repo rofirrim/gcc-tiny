@@ -440,14 +440,14 @@ Parser::parse_variable_declaration ()
 
   skip_token (Tiny::SEMICOLON);
 
-  if (scope.scope ().get (identifier->get_str ()))
+  if (scope.get_current_mapping ().get (identifier->get_str ()))
     {
       error_at (identifier->get_locus (),
 		"variable '%s' already declared in this scope",
 		identifier->get_str ().c_str ());
     }
   Symbol *sym = new Symbol (identifier->get_str ());
-  scope.scope ().insert (sym);
+  scope.get_current_mapping ().insert (sym);
 
   Tree decl = build_decl (identifier->get_locus (), VAR_DECL,
 			  get_identifier (sym->get_name ().c_str ()),
@@ -535,7 +535,7 @@ Parser::parse_type ()
 Symbol *
 Parser::query_variable (const std::string &name, location_t loc)
 {
-  Symbol *sym = scope.query (name);
+  Symbol *sym = scope.lookup (name);
   if (sym == NULL)
     {
       error_at (loc, "variable '%s' not declared in the current scope",
@@ -1225,7 +1225,7 @@ Parser::null_denotation (const_TokenPtr tok)
     {
     case Tiny::IDENTIFIER:
       {
-	Symbol *s = scope.query (tok->get_str ());
+	Symbol *s = scope.lookup (tok->get_str ());
 	if (s == NULL)
 	  {
 	    error_at (tok->get_locus (),

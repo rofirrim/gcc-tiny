@@ -11,16 +11,10 @@ struct Scope
 {
 public:
   SymbolMapping &
-  scope ()
+  get_current_mapping ()
   {
-    return *(current_scope.back ());
-  }
-
-  SymbolMapping &
-  get_top_level_scope ()
-  {
-    gcc_assert (!current_scope.empty ());
-    return *(current_scope.front ());
+    gcc_assert (!map_stack.empty ());
+    return map_stack.back ();
   }
 
   void push_scope ();
@@ -28,11 +22,11 @@ public:
 
   Scope ();
 
-  Symbol *query (const std::string &str);
+  Symbol *lookup (const std::string &str);
 
 private:
-  std::vector<SymbolMapping *> current_scope;
-  static int scope_id;
+  typedef std::vector<SymbolMapping> MapStack;
+  MapStack map_stack;
 };
 
 }
