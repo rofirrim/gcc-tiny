@@ -352,6 +352,8 @@ Parser::leave_scope ()
   tree_scope.bind_expr = bind_expr;
   tree_scope.block = new_block;
 
+  scope.pop_scope();
+
   return tree_scope;
 }
 
