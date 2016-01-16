@@ -16,6 +16,7 @@ along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
 #include <iostream>
+#include <memory>
 
 #include "tiny/tiny-parser.h"
 #include "tiny/tiny-lexer.h"
@@ -71,7 +72,7 @@ private:
   Tree build_label_decl (const char *name, location_t loc);
   Tree build_if_statement (Tree bool_expr, Tree then_part, Tree else_part);
   Tree build_while_statement (Tree bool_expr, Tree while_body);
-  Tree build_for_statement (Symbol *ind_var, Tree lower_bound, Tree upper_bound,
+  Tree build_for_statement (SymbolPtr ind_var, Tree lower_bound, Tree upper_bound,
 			    Tree for_body_stmt_list);
 
   const char *print_type (Tree type);
@@ -88,8 +89,8 @@ private:
 
   TreeSymbolMapping leave_scope ();
 
-  Symbol *query_variable (const std::string &name, location_t loc);
-  Symbol *query_integer_variable (const std::string &name, location_t loc);
+  SymbolPtr query_variable (const std::string &name, location_t loc);
+  SymbolPtr query_integer_variable (const std::string &name, location_t loc);
 
   void parse_statement_seq (bool (Parser::*done) ());
 
@@ -446,7 +447,7 @@ Parser::parse_variable_declaration ()
 		"variable '%s' already declared in this scope",
 		identifier->get_str ().c_str ());
     }
-  Symbol *sym = new Symbol (identifier->get_str ());
+  SymbolPtr sym (new Symbol (identifier->get_str ()));
   scope.get_current_mapping ().insert (sym);
 
   Tree decl = build_decl (identifier->get_locus (), VAR_DECL,
@@ -532,10 +533,10 @@ Parser::parse_type ()
     }
 }
 
-Symbol *
+SymbolPtr
 Parser::query_variable (const std::string &name, location_t loc)
 {
-  Symbol *sym = scope.lookup (name);
+  SymbolPtr sym = scope.lookup (name);
   if (sym == NULL)
     {
       error_at (loc, "variable '%s' not declared in the current scope",
@@ -544,10 +545,10 @@ Parser::query_variable (const std::string &name, location_t loc)
   return sym;
 }
 
-Symbol *
+SymbolPtr
 Parser::query_integer_variable (const std::string &name, location_t loc)
 {
-  Symbol *sym = query_variable (name, loc);
+  SymbolPtr sym = query_variable (name, loc);
   if (sym != NULL)
     {
       Tree var_decl = sym->get_tree_decl ();
@@ -557,7 +558,7 @@ Parser::query_integer_variable (const std::string &name, location_t loc)
 	{
 	  error_at (loc, "variable '%s' does not have integer type",
 		    name.c_str ());
-	  sym = NULL;
+	  sym = SymbolPtr();
 	}
     }
 
@@ -575,7 +576,7 @@ Parser::parse_assignment_statement ()
       return Tree::error ();
     }
 
-  Symbol *sym
+  SymbolPtr sym
     = query_variable (identifier->get_str (), identifier->get_locus ());
   if (sym == NULL)
     {
@@ -814,7 +815,7 @@ Parser::parse_while_statement ()
 }
 
 Tree
-Parser::build_for_statement (Symbol *ind_var, Tree lower_bound,
+Parser::build_for_statement (SymbolPtr ind_var, Tree lower_bound,
 			     Tree upper_bound, Tree for_body_stmt_list)
 {
   if (ind_var == NULL)
@@ -909,7 +910,7 @@ Parser::parse_for_statement ()
   skip_token (Tiny::END);
 
   // Induction var
-  Symbol *ind_var
+  SymbolPtr ind_var
     = query_integer_variable (identifier->get_str (), identifier->get_locus ());
 
   return build_for_statement (ind_var, lower_bound, upper_bound, for_body_stmt);
@@ -1225,7 +1226,7 @@ Parser::null_denotation (const_TokenPtr tok)
     {
     case Tiny::IDENTIFIER:
       {
-	Symbol *s = scope.lookup (tok->get_str ());
+	SymbolPtr s = scope.lookup (tok->get_str ());
 	if (s == NULL)
 	  {
 	    error_at (tok->get_locus (),

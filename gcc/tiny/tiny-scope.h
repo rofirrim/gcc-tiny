@@ -2,6 +2,7 @@
 #define TINY_SCOPE_H
 
 #include "tiny-symbol-mapping.h"
+#include <tr1/memory>
 #include <vector>
 
 namespace Tiny
@@ -22,7 +23,7 @@ public:
 
   Scope ();
 
-  Symbol *lookup (const std::string &str);
+  SymbolPtr lookup (const std::string &str);
 
 private:
   typedef std::vector<SymbolMapping> MapStack;

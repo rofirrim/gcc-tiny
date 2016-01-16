@@ -8,6 +8,7 @@
 #include "coretypes.h"
 #include "tree.h"
 
+#include <tr1/memory>
 
 namespace Tiny
 {
@@ -43,6 +44,10 @@ private:
   std::string name;
   Tree decl;
 };
+
+typedef std::tr1::shared_ptr<Symbol> SymbolPtr;
+typedef std::tr1::shared_ptr<const Symbol> const_SymbolPtr;
+
 }
 
 #endif // TINY_SYMBOL_H

@@ -20,17 +20,17 @@ Scope::pop_scope ()
   map_stack.pop_back ();
 }
 
-Symbol *
+SymbolPtr
 Scope::lookup (const std::string &str)
 {
   for (MapStack::reverse_iterator map = map_stack.rbegin ();
        map != map_stack.rend (); map++)
     {
-      if (Symbol *sym = map->get (str))
+      if (SymbolPtr sym = map->get (str))
 	{
 	  return sym;
 	}
     }
-  return NULL;
+  return SymbolPtr();
 }
 }

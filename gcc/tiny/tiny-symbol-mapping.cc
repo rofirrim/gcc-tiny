@@ -10,7 +10,7 @@ namespace Tiny
 {
 
 void
-SymbolMapping::insert (Symbol *s)
+SymbolMapping::insert (SymbolPtr s)
 {
   gcc_assert (s != NULL);
   std::pair<Map::iterator, bool> p
@@ -19,7 +19,7 @@ SymbolMapping::insert (Symbol *s)
   gcc_assert (p.second);
 }
 
-Symbol *
+SymbolPtr
 SymbolMapping::get (const std::string &str) const
 {
   Map::const_iterator it = map.find (str);
@@ -27,7 +27,7 @@ SymbolMapping::get (const std::string &str) const
     {
       return it->second;
     }
-  return NULL;
+  return SymbolPtr();
 }
 
 }

@@ -2,6 +2,7 @@
 #define TINY_SYMBOL_MAPPING_H
 
 #include "tiny/tiny-symbol.h"
+#include <tr1/memory>
 #include <map>
 
 namespace Tiny
@@ -11,12 +12,12 @@ struct SymbolMapping
 {
 public:
 
-  void insert (Symbol *s);
-  Symbol *get (const std::string &str) const;
+  void insert (SymbolPtr s);
+  SymbolPtr get (const std::string &str) const;
 
 private:
 
-  typedef std::map<std::string, Symbol *> Map;
+  typedef std::map<std::string, SymbolPtr > Map;
   Map map;
 };
 
