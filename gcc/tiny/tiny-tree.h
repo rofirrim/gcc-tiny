@@ -125,11 +125,12 @@ struct TreeStmtList
 {
 public:
   TreeStmtList () : list (alloc_stmt_list ()) {}
-  TreeStmtList (Tree t) : list (t.get_tree()) {}
+  TreeStmtList (Tree t) : list (t.get_tree ()) {}
 
-  void append(Tree t)
+  void
+  append (Tree t)
   {
-      append_to_statement_list(t.get_tree(), &list);
+    append_to_statement_list (t.get_tree (), &list);
   }
 
   tree
