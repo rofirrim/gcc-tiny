@@ -344,9 +344,9 @@ Parser::leave_scope ()
        it = BLOCK_CHAIN (it))
     BLOCK_SUPERCONTEXT (it) = new_block;
 
-  tree bind_expr = build3 (BIND_EXPR, void_type_node, NULL_TREE,
-			   current_stmt_list.get_tree (), new_block);
-  BIND_EXPR_VARS (bind_expr) = var_decl_chain.first.get_tree ();
+  tree bind_expr
+    = build3 (BIND_EXPR, void_type_node, var_decl_chain.first.get_tree (),
+	      current_stmt_list.get_tree (), new_block);
 
   TreeSymbolMapping tree_scope;
   tree_scope.bind_expr = bind_expr;
