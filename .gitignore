@@ -52,3 +52,6 @@ REVISION
 
 tags
 .vimrc
+
+*.swp
+*.swo
