@@ -23,7 +23,7 @@ statement ->  declaration
 declaration -> "var" identifier ":" type ";"
 
 type -> "int"
-      | "real"
+      | "float"
 
 assignment_statement -> identifier ":=" expression ";"
 
@@ -56,7 +56,8 @@ expression -> primary
            |  expression binop expression
 
 primary -> identifier
-        |  integer
+        |  integer-literal
+        |  real-literal
         |  string
         |  "(" expression ")"
 
