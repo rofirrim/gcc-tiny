@@ -242,6 +242,7 @@ Parser::parse_program ()
   // Append "return 0;"
   tree resdecl
     = build_decl (UNKNOWN_LOCATION, RESULT_DECL, NULL_TREE, integer_type_node);
+  DECL_CONTEXT (resdecl) = main_fndecl;
   DECL_RESULT (main_fndecl) = resdecl;
   tree set_result
     = build2 (INIT_EXPR, void_type_node, DECL_RESULT (main_fndecl),
@@ -455,6 +456,7 @@ Parser::parse_variable_declaration ()
   Tree decl = build_decl (identifier->get_locus (), VAR_DECL,
 			  get_identifier (sym->get_name ().c_str ()),
 			  type_tree.get_tree ());
+  DECL_CONTEXT (decl.get_tree()) = main_fndecl;
 
   gcc_assert (!stack_var_decl_chain.empty ());
   stack_var_decl_chain.back ().append (decl);
