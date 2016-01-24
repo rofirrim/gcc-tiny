@@ -24,6 +24,10 @@ declaration -> "var" identifier ":" type ";"
 
 type -> "int"
       | "float"
+      | type "[" expression "]"     % array of given length with valid
+                                    % indexes o to expression - 1
+      | type "(" expression ":" expression ")"    % array with given indexes
+                                                  % from first expression to second one
 
 assignment_statement -> identifier ":=" expression ";"
 
@@ -46,7 +50,9 @@ for_statement -> "for"  identifier ":=" expression "to" expression "do"
                      statement*
                  "end"
 
-read_statement -> "read" identifier ";"
+read_statement -> "read" expression ";"               % expression designates
+                                                      % a variable or array
+                                                      % access
 
 write_statement -> "write" expression ";"
 
@@ -56,6 +62,7 @@ expression -> primary
            |  expression binop expression
 
 primary -> identifier
+        |  identifier "[" expression "]"              % array access
         |  integer-literal
         |  real-literal
         |  string

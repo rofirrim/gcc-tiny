@@ -40,6 +40,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "convert.h"
 #include "print-tree.h"
 #include "stor-layout.h"
+#include "fold-const.h"
 
 namespace Tiny
 {
@@ -116,7 +117,9 @@ private:
   BINARY_HANDLER (greater_equal, GREATER_OR_EQUAL)                             \
                                                                                \
   BINARY_HANDLER (logical_and, AND)                                            \
-  BINARY_HANDLER (logical_or, OR)
+  BINARY_HANDLER (logical_or, OR)                                              \
+                                                                               \
+  BINARY_HANDLER (array_ref, LEFT_SQUARE)
 
 #define BINARY_HANDLER(name, _)                                                \
   Tree binary_##name (const_TokenPtr tok, Tree left);
@@ -144,6 +147,8 @@ public:
   Tree parse_write_statement ();
 
   Tree parse_expression ();
+  Tree parse_expression_naming_variable();
+  Tree parse_lhs_assignment_expression();
   Tree parse_boolean_expression ();
   Tree parse_integer_expression ();
 
@@ -479,6 +484,14 @@ is_string_type (Tree type)
   return type.get_tree_code () == POINTER_TYPE
 	 && TYPE_MAIN_VARIANT (TREE_TYPE (type.get_tree ())) == char_type_node;
 }
+
+bool
+is_array_type (Tree type)
+{
+  gcc_assert (TYPE_P (type.get_tree ()));
+  return type.get_tree_code () == ARRAY_TYPE;
+}
+
 }
 
 const char *
@@ -502,6 +515,10 @@ Parser::print_type (Tree type)
     {
       return "string";
     }
+  else if (is_array_type(type))
+    {
+      return "array";
+    }
   else if (type == boolean_type_node)
     {
       return "boolean";
@@ -517,24 +534,91 @@ Parser::parse_type ()
 {
   // type -> "int"
   //      | "float"
+  //      | type '[' expr ']'
+  //      | type '(' expr : expr ')'
 
   const_TokenPtr t = lexer.peek_token ();
+
+  Tree type;
 
   switch (t->get_id ())
     {
     case Tiny::INT:
       lexer.skip_token ();
-      return ::integer_type_node;
+      type = integer_type_node;
       break;
     case Tiny::FLOAT:
       lexer.skip_token ();
-      return ::float_type_node;
+      type = float_type_node;
       break;
     default:
       unexpected_token (t);
       return Tree::error ();
       break;
     }
+
+  typedef std::vector<std::pair<Tree, Tree> > Dimensions;
+  Dimensions dimensions;
+
+  t = lexer.peek_token ();
+  while (t->get_id () == Tiny::LEFT_PAREN || t->get_id () == Tiny::LEFT_SQUARE)
+    {
+      lexer.skip_token ();
+
+      Tree lower_bound, upper_bound;
+      if (t->get_id () == Tiny::LEFT_SQUARE)
+	{
+	  Tree size = parse_integer_expression ();
+	  skip_token (Tiny::RIGHT_SQUARE);
+
+	  lower_bound = Tree (build_int_cst_type (integer_type_node, 0),
+			      size.get_locus ());
+	  upper_bound
+	    = build_tree (MINUS_EXPR, size.get_locus (), integer_type_node,
+			  size, build_int_cst (integer_type_node, 1));
+
+	}
+      else if (t->get_id () == Tiny::LEFT_PAREN)
+	{
+	  lower_bound = parse_integer_expression ();
+	  skip_token (Tiny::COLON);
+
+	  upper_bound = parse_integer_expression ();
+	  skip_token (Tiny::RIGHT_PAREN);
+	}
+      else
+	{
+	  gcc_unreachable ();
+	}
+
+      dimensions.push_back (std::make_pair (lower_bound, upper_bound));
+      t = lexer.peek_token ();
+    }
+
+  for (Dimensions::reverse_iterator it = dimensions.rbegin ();
+       it != dimensions.rend (); it++)
+    {
+      it->first = Tree (fold (it->first.get_tree ()), it->first.get_locus ());
+//       if (it->first.get_tree_code () != INTEGER_CST)
+// 	{
+// 	  error_at (it->first.get_locus (), "is not an integer constant");
+// 	  break;
+// 	}
+      it->second
+	= Tree (fold (it->second.get_tree ()), it->second.get_locus ());
+//       if (it->second.get_tree_code () != INTEGER_CST)
+// 	{
+// 	  error_at (it->second.get_locus (), "is not an integer constant");
+// 	  break;
+// 	}
+
+      Tree range_type
+	= build_range_type (integer_type_node, it->first.get_tree (),
+			    it->second.get_tree ());
+      type = build_array_type (type.get_tree (), range_type.get_tree ());
+    }
+
+  return type;
 }
 
 SymbolPtr
@@ -572,24 +656,11 @@ Parser::query_integer_variable (const std::string &name, location_t loc)
 Tree
 Parser::parse_assignment_statement ()
 {
-  // assignment_statement -> identifier ":=" expression ";"
-  const_TokenPtr identifier = expect_token (Tiny::IDENTIFIER);
-  if (identifier == NULL)
-    {
-      skip_after_semicolon ();
-      return Tree::error ();
-    }
+  // assignment_statement -> expression ":=" expression ";"
+  Tree variable = parse_lhs_assignment_expression ();
 
-  SymbolPtr sym
-    = query_variable (identifier->get_str (), identifier->get_locus ());
-  if (sym == NULL)
-    {
-      skip_after_semicolon ();
-      return Tree::error ();
-    }
-
-  gcc_assert (!sym->get_tree_decl ().is_null ());
-  Tree var_decl = sym->get_tree_decl ();
+  if (variable.is_error ())
+    return Tree::error ();
 
   const_TokenPtr assig_tok = expect_token (Tiny::ASSIG);
   if (assig_tok == NULL)
@@ -606,18 +677,17 @@ Parser::parse_assignment_statement ()
 
   skip_token (Tiny::SEMICOLON);
 
-  // FIXME: We may want to allow coercions here
-  if (var_decl.get_type () != expr.get_type ())
+  if (variable.get_type () != expr.get_type ())
     {
       error_at (first_of_expr->get_locus (),
-		"cannot assign value of type %s to variable '%s' of type %s",
-		print_type (expr.get_type ()), sym->get_name ().c_str (),
-		print_type (var_decl.get_type ()));
+		"cannot assign value of type %s to a variable of type %s",
+		print_type (expr.get_type ()),
+		print_type (variable.get_type ()));
       return Tree::error ();
     }
 
   Tree assig_expr = build_tree (MODIFY_EXPR, assig_tok->get_locus (),
-				void_type_node, var_decl, expr);
+				void_type_node, variable, expr);
 
   return assig_expr;
 }
@@ -954,19 +1024,12 @@ Parser::parse_read_statement ()
     }
 
   const_TokenPtr first_of_expr = lexer.peek_token ();
-  Tree expr = parse_expression ();
+  Tree expr = parse_expression_naming_variable ();
 
   skip_token (Tiny::SEMICOLON);
 
   if (expr.is_error ())
     return Tree::error ();
-
-  if (expr.get_tree_code () != VAR_DECL)
-    {
-      error_at (first_of_expr->get_locus (),
-		"invalid expression in read statement");
-      return Tree::error ();
-    }
 
   // Now this variable must be addressable
   TREE_ADDRESSABLE (expr.get_tree ()) = 1;
@@ -1157,6 +1220,8 @@ enum binding_powers
   // Highest priority
   LBP_HIGHEST = 100,
 
+  LBP_ARRAY_REF = 80,
+
   LBP_UNARY_PLUS = 50,  // Used only when the null denotation is +
   LBP_UNARY_MINUS = LBP_UNARY_PLUS, // Used only when the null denotation is -
 
@@ -1189,6 +1254,8 @@ Parser::left_binding_power (const_TokenPtr token)
 {
   switch (token->get_id ())
     {
+    case Tiny::LEFT_SQUARE:
+      return LBP_ARRAY_REF;
     //
     case Tiny::ASTERISK:
       return LBP_MUL;
@@ -1214,7 +1281,7 @@ Parser::left_binding_power (const_TokenPtr token)
       return LBP_LOWER_THAN;
     case Tiny::LOWER_OR_EQUAL:
       return LBP_LOWER_EQUAL;
-    // Anything that cannot appear as a left operand
+    // Anything that cannot appear after a left operand
     // is considered a terminator
     default:
       return LBP_LOWEST;
@@ -1230,14 +1297,9 @@ Parser::null_denotation (const_TokenPtr tok)
     {
     case Tiny::IDENTIFIER:
       {
-	SymbolPtr s = scope.lookup (tok->get_str ());
+	SymbolPtr s = query_variable (tok->get_str (), tok->get_locus ());
 	if (s == NULL)
-	  {
-	    error_at (tok->get_locus (),
-		      "variable '%s' not declared in the current scope",
-		      tok->get_str ().c_str ());
-	    return Tree::error ();
-	  }
+	  return Tree::error ();
 	return Tree (s->get_tree_decl (), tok->get_locus ());
       }
     case Tiny::INTEGER_LITERAL:
@@ -1616,6 +1678,27 @@ Parser::binary_logical_or (const_TokenPtr tok, Tree left)
 		     left, right);
 }
 
+Tree
+Parser::binary_array_ref (const const_TokenPtr tok, Tree left)
+{
+  Tree right = parse_integer_expression ();
+  if (right.is_error ())
+    return Tree::error ();
+
+  if (!skip_token (Tiny::RIGHT_SQUARE))
+    return Tree::error ();
+
+  if (!is_array_type (left.get_type ()))
+    {
+      error_at (left.get_locus(), "does not have array type");
+      return Tree::error ();
+    }
+
+  Tree element_type = TREE_TYPE(left.get_type().get_tree());
+
+  return build_tree (ARRAY_REF, tok->get_locus (), element_type, left, right, Tree(), Tree());
+}
+
 // This is invoked when a token (likely an operand) is found at a (likely
 // infix) non-prefix position
 Tree
@@ -1669,6 +1752,28 @@ Parser::parse_integer_expression ()
       return Tree::error ();
     }
   return expr;
+}
+
+Tree
+Parser::parse_expression_naming_variable ()
+{
+  Tree expr = parse_expression ();
+  if (expr.is_error ())
+    return expr;
+
+  if (expr.get_tree_code () != VAR_DECL && expr.get_tree_code () != ARRAY_REF)
+    {
+      error_at (expr.get_locus (),
+		"does not designate a variable or array element");
+      return Tree::error ();
+    }
+  return expr;
+}
+
+Tree
+Parser::parse_lhs_assignment_expression ()
+{
+  return parse_expression_naming_variable();
 }
 }
 

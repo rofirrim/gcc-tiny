@@ -159,8 +159,7 @@ tiny_langhook_builtin_function (tree decl)
 static bool
 tiny_langhook_global_bindings_p (void)
 {
-  gcc_unreachable ();
-  return true;
+  return false;
 }
 
 static tree

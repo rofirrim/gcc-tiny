@@ -40,6 +40,8 @@ namespace Tiny
   TINY_TOKEN (INTEGER_LITERAL, "integer literal")                              \
   TINY_TOKEN (REAL_LITERAL, "real literal")                                    \
   TINY_TOKEN (STRING_LITERAL, "string literal")                                \
+  TINY_TOKEN (LEFT_SQUARE, "[")                                                \
+  TINY_TOKEN (RIGHT_SQUARE, "]")                                               \
                                                                                \
   TINY_TOKEN_KEYWORD (AND, "and")                                              \
   TINY_TOKEN_KEYWORD (DO, "do")                                                \
