@@ -534,6 +534,7 @@ Parser::parse_type ()
 {
   // type -> "int"
   //      | "float"
+  //      | "bool"
   //      | type '[' expr ']'
   //      | type '(' expr : expr ')'
 
@@ -550,6 +551,10 @@ Parser::parse_type ()
     case Tiny::FLOAT:
       lexer.skip_token ();
       type = float_type_node;
+      break;
+    case Tiny::BOOL:
+      lexer.skip_token ();
+      type = boolean_type_node;
       break;
     default:
       unexpected_token (t);
@@ -1311,7 +1316,7 @@ Parser::null_denotation (const_TokenPtr tok)
       }
     case Tiny::INTEGER_LITERAL:
       // FIXME : check ranges
-      return Tree (build_int_cst_type (::integer_type_node,
+      return Tree (build_int_cst_type (integer_type_node,
 				       atoi (tok->get_str ().c_str ())),
 		   tok->get_locus ());
       break;
@@ -1330,6 +1335,18 @@ Parser::null_denotation (const_TokenPtr tok)
 	std::string str = tok->get_str ();
 	const char *c_str = str.c_str ();
 	return Tree (build_string_literal (::strlen (c_str) + 1, c_str),
+		     tok->get_locus ());
+      }
+      break;
+    case Tiny::TRUE_LITERAL :
+      {
+	return Tree (build_int_cst_type (boolean_type_node, 1),
+		     tok->get_locus ());
+      }
+      break;
+    case Tiny::FALSE_LITERAL :
+      {
+	return Tree (build_int_cst_type (boolean_type_node, 0),
 		     tok->get_locus ());
       }
       break;
