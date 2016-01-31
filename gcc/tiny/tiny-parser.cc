@@ -1331,7 +1331,7 @@ Parser::null_denotation (const_TokenPtr tok)
 	Tree expr = parse_expression ();
 	tok = lexer.peek_token ();
 	if (tok->get_id () != Tiny::RIGHT_PAREN)
-	  error_at (tok->get_locus (), "expecting ')' but %s found\n",
+	  error_at (tok->get_locus (), "expecting ) but %s found\n",
 		    tok->get_token_description ());
 	else
 	  lexer.skip_token ();
