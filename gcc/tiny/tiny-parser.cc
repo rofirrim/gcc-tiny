@@ -1561,7 +1561,7 @@ Parser::binary_equal (const_TokenPtr tok, Tree left)
 Tree
 Parser::binary_different (const_TokenPtr tok, Tree left)
 {
-  Tree right = parse_expression (LBP_EQUAL);
+  Tree right = parse_expression (LBP_DIFFERENT);
   if (right.is_error ())
     return Tree::error ();
 
@@ -1576,7 +1576,7 @@ Parser::binary_different (const_TokenPtr tok, Tree left)
 Tree
 Parser::binary_lower_than (const_TokenPtr tok, Tree left)
 {
-  Tree right = parse_expression (LBP_EQUAL);
+  Tree right = parse_expression (LBP_LOWER_THAN);
   if (right.is_error ())
     return Tree::error ();
 
@@ -1591,7 +1591,7 @@ Parser::binary_lower_than (const_TokenPtr tok, Tree left)
 Tree
 Parser::binary_lower_equal (const_TokenPtr tok, Tree left)
 {
-  Tree right = parse_expression (LBP_EQUAL);
+  Tree right = parse_expression (LBP_LOWER_EQUAL);
   if (right.is_error ())
     return Tree::error ();
 
@@ -1606,7 +1606,7 @@ Parser::binary_lower_equal (const_TokenPtr tok, Tree left)
 Tree
 Parser::binary_greater_than (const_TokenPtr tok, Tree left)
 {
-  Tree right = parse_expression (LBP_EQUAL);
+  Tree right = parse_expression (LBP_GREATER_THAN);
   if (right.is_error ())
     return Tree::error ();
 
@@ -1621,7 +1621,7 @@ Parser::binary_greater_than (const_TokenPtr tok, Tree left)
 Tree
 Parser::binary_greater_equal (const_TokenPtr tok, Tree left)
 {
-  Tree right = parse_expression (LBP_EQUAL);
+  Tree right = parse_expression (LBP_GREATER_EQUAL);
   if (right.is_error ())
     return Tree::error ();
 
