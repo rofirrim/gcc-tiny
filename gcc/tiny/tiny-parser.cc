@@ -1281,6 +1281,13 @@ Parser::left_binding_power (const_TokenPtr token)
       return LBP_LOWER_THAN;
     case Tiny::LOWER_OR_EQUAL:
       return LBP_LOWER_EQUAL;
+    //
+    case Tiny::OR:
+      return LBP_LOGICAL_OR;
+    case Tiny::AND:
+      return LBP_LOGICAL_AND;
+    case Tiny::NOT:
+      return LBP_LOGICAL_NOT;
     // Anything that cannot appear after a left operand
     // is considered a terminator
     default:
@@ -1653,7 +1660,7 @@ Parser::check_logical_operands (const_TokenPtr tok, Tree left, Tree right)
 Tree
 Parser::binary_logical_and (const_TokenPtr tok, Tree left)
 {
-  Tree right = parse_expression (LBP_EQUAL);
+  Tree right = parse_expression (LBP_LOGICAL_AND);
   if (right.is_error ())
     return Tree::error ();
 
@@ -1667,7 +1674,7 @@ Parser::binary_logical_and (const_TokenPtr tok, Tree left)
 Tree
 Parser::binary_logical_or (const_TokenPtr tok, Tree left)
 {
-  Tree right = parse_expression (LBP_EQUAL);
+  Tree right = parse_expression (LBP_LOGICAL_OR);
   if (right.is_error ())
     return Tree::error ();
 
