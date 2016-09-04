@@ -42,6 +42,7 @@ namespace Tiny
   TINY_TOKEN (STRING_LITERAL, "string literal")                                \
   TINY_TOKEN (LEFT_SQUARE, "[")                                                \
   TINY_TOKEN (RIGHT_SQUARE, "]")                                               \
+  TINY_TOKEN (DOT, ".")                                                        \
                                                                                \
   TINY_TOKEN_KEYWORD (AND, "and")                                              \
   TINY_TOKEN_KEYWORD (BOOL, "bool")                                            \
@@ -56,6 +57,7 @@ namespace Tiny
   TINY_TOKEN_KEYWORD (NOT, "not")                                              \
   TINY_TOKEN_KEYWORD (OR, "or")                                                \
   TINY_TOKEN_KEYWORD (READ, "read")                                            \
+  TINY_TOKEN_KEYWORD (RECORD, "record")                                        \
   TINY_TOKEN_KEYWORD (THEN, "then")                                            \
   TINY_TOKEN_KEYWORD (TO, "to")                                                \
   TINY_TOKEN_KEYWORD (TRUE_LITERAL, "true")                                    \

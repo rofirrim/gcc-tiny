@@ -120,7 +120,9 @@ private:
   BINARY_HANDLER (logical_and, AND)                                            \
   BINARY_HANDLER (logical_or, OR)                                              \
                                                                                \
-  BINARY_HANDLER (array_ref, LEFT_SQUARE)
+  BINARY_HANDLER (array_ref, LEFT_SQUARE)                                      \
+                                                                               \
+  BINARY_HANDLER (field_ref, DOT)
 
 #define BINARY_HANDLER(name, _)                                                \
   Tree binary_##name (const_TokenPtr tok, Tree left);
@@ -140,6 +142,8 @@ public:
   Tree parse_type_declaration ();
 
   Tree parse_type ();
+  Tree parse_record ();
+  Tree parse_field_declaration (std::vector<std::string> &field_names);
 
   Tree parse_assignment_statement ();
   Tree parse_if_statement ();
@@ -555,6 +559,13 @@ is_array_type (Tree type)
   return type.get_tree_code () == ARRAY_TYPE;
 }
 
+bool
+is_record_type (Tree type)
+{
+  gcc_assert (TYPE_P (type.get_tree ()));
+  return type.get_tree_code () == RECORD_TYPE;
+}
+
 }
 
 const char *
@@ -593,6 +604,84 @@ Parser::print_type (Tree type)
 }
 
 Tree
+Parser::parse_field_declaration (std::vector<std::string> &field_names)
+{
+  // identifier ':' type ';'
+  const_TokenPtr identifier = expect_token (Tiny::IDENTIFIER);
+  if (identifier == NULL)
+    {
+      skip_after_semicolon ();
+      return Tree::error ();
+    }
+
+  skip_token (Tiny::COLON);
+
+  Tree type = parse_type();
+
+  skip_token (Tiny::SEMICOLON);
+
+  if (type.is_error ())
+    return Tree::error ();
+
+  if (std::find (field_names.begin (), field_names.end (),
+		 identifier->get_str ())
+      != field_names.end ())
+    {
+      error_at (identifier->get_locus (), "repeated field name");
+      return Tree::error ();
+    }
+  field_names.push_back (identifier->get_str ());
+
+  Tree field_decl
+    = build_decl (identifier->get_locus (), FIELD_DECL,
+		  get_identifier (identifier->get_str ().c_str ()),
+		  type.get_tree());
+  TREE_ADDRESSABLE (field_decl.get_tree ()) = 1;
+
+  return field_decl;
+}
+
+Tree
+Parser::parse_record ()
+{
+  // "record" field-decl* "end"
+  const_TokenPtr record_tok = expect_token (Tiny::RECORD);
+  if (record_tok == NULL)
+    {
+      skip_after_semicolon ();
+      return Tree::error ();
+    }
+
+  Tree record_type = make_node(RECORD_TYPE);
+  Tree field_list, field_last;
+  std::vector<std::string> field_names;
+
+  const_TokenPtr next = lexer.peek_token ();
+  while (next->get_id () != Tiny::END)
+    {
+      Tree field_decl = parse_field_declaration (field_names);
+
+      if (!field_decl.is_error ())
+	{
+	  DECL_CONTEXT (field_decl.get_tree ()) = record_type.get_tree();
+	  if (field_list.is_null ())
+	    field_list = field_decl;
+	  if (!field_last.is_null ())
+	    TREE_CHAIN (field_last.get_tree ()) = field_decl.get_tree ();
+	  field_last = field_decl;
+	}
+      next = lexer.peek_token ();
+    }
+
+  skip_token (Tiny::END);
+
+  TYPE_FIELDS (record_type.get_tree ()) = field_list.get_tree();
+  layout_type (record_type.get_tree ());
+
+  return record_type;
+}
+
+Tree
 Parser::parse_type ()
 {
   // type -> "int"
@@ -601,6 +690,7 @@ Parser::parse_type ()
   //      | IDENTIFIER
   //      | type '[' expr ']'
   //      | type '(' expr : expr ')'
+  //      | "record" field-decl* "end"
 
   const_TokenPtr t = lexer.peek_token ();
 
@@ -629,6 +719,9 @@ Parser::parse_type ()
         else
           type = TREE_TYPE (s->get_tree_decl ().get_tree ());
       }
+      break;
+    case Tiny::RECORD:
+      type = parse_record ();
       break;
     default:
       unexpected_token (t);
@@ -1324,6 +1417,8 @@ enum binding_powers
   // Highest priority
   LBP_HIGHEST = 100,
 
+  LBP_DOT = 90,
+
   LBP_ARRAY_REF = 80,
 
   LBP_UNARY_PLUS = 50,  // Used only when the null denotation is +
@@ -1358,6 +1453,9 @@ Parser::left_binding_power (const_TokenPtr token)
 {
   switch (token->get_id ())
     {
+    case Tiny::DOT:
+      return LBP_DOT;
+    //
     case Tiny::LEFT_SQUARE:
       return LBP_ARRAY_REF;
     //
@@ -1822,6 +1920,46 @@ Parser::binary_array_ref (const const_TokenPtr tok, Tree left)
   return build_tree (ARRAY_REF, tok->get_locus (), element_type, left, right, Tree(), Tree());
 }
 
+Tree
+Parser::binary_field_ref (const const_TokenPtr tok, Tree left)
+{
+  const_TokenPtr identifier = expect_token (Tiny::IDENTIFIER);
+  if (identifier == NULL)
+    {
+      return Tree::error ();
+    }
+
+  if (!is_record_type (left.get_type ()))
+    {
+      error_at (left.get_locus (), "does not have record type");
+      return Tree::error ();
+    }
+
+  Tree field_decl = TYPE_FIELDS (left.get_type ().get_tree ());
+  while (!field_decl.is_null ())
+    {
+      Tree decl_name = DECL_NAME (field_decl.get_tree ());
+      const char *field_name = IDENTIFIER_POINTER (decl_name.get_tree ());
+
+      if (field_name == identifier->get_str ())
+	break;
+
+      field_decl = TREE_CHAIN (field_decl.get_tree ());
+    }
+
+  if (field_decl.is_null ())
+    {
+      error_at (left.get_locus (),
+		"record type does not have a field named '%s'",
+		identifier->get_str ().c_str ());
+      return Tree::error ();
+    }
+
+  return build_tree (COMPONENT_REF, tok->get_locus (),
+		     TREE_TYPE (field_decl.get_tree ()), left, field_decl,
+		     Tree ());
+}
+
 // This is invoked when a token (likely an operand) is found at a (likely
 // infix) non-prefix position
 Tree
@@ -1884,10 +2022,11 @@ Parser::parse_expression_naming_variable ()
   if (expr.is_error ())
     return expr;
 
-  if (expr.get_tree_code () != VAR_DECL && expr.get_tree_code () != ARRAY_REF)
+  if (expr.get_tree_code () != VAR_DECL && expr.get_tree_code () != ARRAY_REF
+      && expr.get_tree_code () != COMPONENT_REF)
     {
       error_at (expr.get_locus (),
-		"does not designate a variable or array element");
+		"does not designate a variable, array element or field");
       return Tree::error ();
     }
   return expr;

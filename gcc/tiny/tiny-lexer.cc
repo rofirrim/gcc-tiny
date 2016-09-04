@@ -229,6 +229,13 @@ Lexer::build_token ()
 	case ']':
 	  current_column++;
 	  return Token::make (RIGHT_SQUARE, loc);
+        case '.':
+	  if (!ISDIGIT(peek_input ()))
+	    {
+	      // Only if followed by a non number
+	      current_column++;
+	      return Token::make (DOT, loc);
+	    }
 	}
 
       // ***************************
