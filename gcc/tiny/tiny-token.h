@@ -59,6 +59,7 @@ namespace Tiny
   TINY_TOKEN_KEYWORD (THEN, "then")                                            \
   TINY_TOKEN_KEYWORD (TO, "to")                                                \
   TINY_TOKEN_KEYWORD (TRUE_LITERAL, "true")                                    \
+  TINY_TOKEN_KEYWORD (TYPE, "type")                                            \
   TINY_TOKEN_KEYWORD (VAR, "var")                                              \
   TINY_TOKEN_KEYWORD (WHILE, "while")                                          \
   TINY_TOKEN_KEYWORD (WRITE, "write")                                          \

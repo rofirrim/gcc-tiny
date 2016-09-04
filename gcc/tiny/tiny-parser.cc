@@ -90,6 +90,7 @@ private:
 
   TreeSymbolMapping leave_scope ();
 
+  SymbolPtr query_type (const std::string &name, location_t loc);
   SymbolPtr query_variable (const std::string &name, location_t loc);
   SymbolPtr query_integer_variable (const std::string &name, location_t loc);
 
@@ -136,6 +137,7 @@ public:
   Tree parse_statement ();
 
   Tree parse_variable_declaration ();
+  Tree parse_type_declaration ();
 
   Tree parse_type ();
 
@@ -388,6 +390,9 @@ Parser::parse_statement ()
     case Tiny::VAR:
       return parse_variable_declaration ();
       break;
+    case Tiny::TYPE:
+      return parse_type_declaration ();
+      break;
     case Tiny::IF:
       return parse_if_statement ();
       break;
@@ -452,13 +457,71 @@ Parser::parse_variable_declaration ()
   if (scope.get_current_mapping ().get (identifier->get_str ()))
     {
       error_at (identifier->get_locus (),
-		"variable '%s' already declared in this scope",
+		"name '%s' already declared in this scope",
 		identifier->get_str ().c_str ());
     }
-  SymbolPtr sym (new Symbol (identifier->get_str ()));
+  SymbolPtr sym (new Symbol (Tiny::VARIABLE, identifier->get_str ()));
   scope.get_current_mapping ().insert (sym);
 
   Tree decl = build_decl (identifier->get_locus (), VAR_DECL,
+			  get_identifier (sym->get_name ().c_str ()),
+			  type_tree.get_tree ());
+  DECL_CONTEXT (decl.get_tree()) = main_fndecl;
+
+  gcc_assert (!stack_var_decl_chain.empty ());
+  stack_var_decl_chain.back ().append (decl);
+
+  sym->set_tree_decl (decl);
+
+  Tree stmt
+    = build_tree (DECL_EXPR, identifier->get_locus (), void_type_node, decl);
+
+  return stmt;
+}
+
+Tree
+Parser::parse_type_declaration ()
+{
+  // type_declaration -> "type" identifier ":" type ";"
+  if (!skip_token (Tiny::TYPE))
+    {
+      skip_after_semicolon ();
+      return Tree::error ();
+    }
+
+  const_TokenPtr identifier = expect_token (Tiny::IDENTIFIER);
+  if (identifier == NULL)
+    {
+      skip_after_semicolon ();
+      return Tree::error ();
+    }
+
+  if (!skip_token (Tiny::COLON))
+    {
+      skip_after_semicolon ();
+      return Tree::error ();
+    }
+
+  Tree type_tree = parse_type ();
+
+  if (type_tree.is_error ())
+    {
+      skip_after_semicolon();
+      return Tree::error ();
+    }
+
+  skip_token (Tiny::SEMICOLON);
+
+  if (scope.get_current_mapping ().get (identifier->get_str ()))
+    {
+      error_at (identifier->get_locus (),
+		"name '%s' already declared in this scope",
+		identifier->get_str ().c_str ());
+    }
+  SymbolPtr sym (new Symbol (Tiny::TYPENAME, identifier->get_str ()));
+  scope.get_current_mapping ().insert (sym);
+
+  Tree decl = build_decl (identifier->get_locus (), TYPE_DECL,
 			  get_identifier (sym->get_name ().c_str ()),
 			  type_tree.get_tree ());
   DECL_CONTEXT (decl.get_tree()) = main_fndecl;
@@ -535,6 +598,7 @@ Parser::parse_type ()
   // type -> "int"
   //      | "float"
   //      | "bool"
+  //      | IDENTIFIER
   //      | type '[' expr ']'
   //      | type '(' expr : expr ')'
 
@@ -555,6 +619,16 @@ Parser::parse_type ()
     case Tiny::BOOL:
       lexer.skip_token ();
       type = boolean_type_node;
+      break;
+    case Tiny::IDENTIFIER:
+      {
+	SymbolPtr s = query_type (t->get_str (), t->get_locus ());
+        lexer.skip_token ();
+	if (s == NULL)
+	  type = Tree::error ();
+        else
+          type = TREE_TYPE (s->get_tree_decl ().get_tree ());
+      }
       break;
     default:
       unexpected_token (t);
@@ -617,13 +691,33 @@ Parser::parse_type ()
 // 	  break;
 // 	}
 
-      Tree range_type
-	= build_range_type (integer_type_node, it->first.get_tree (),
-			    it->second.get_tree ());
-      type = build_array_type (type.get_tree (), range_type.get_tree ());
+      if (!type.is_error ())
+	{
+	  Tree range_type
+	    = build_range_type (integer_type_node, it->first.get_tree (),
+				it->second.get_tree ());
+	  type = build_array_type (type.get_tree (), range_type.get_tree ());
+	}
     }
 
   return type;
+}
+
+SymbolPtr
+Parser::query_type (const std::string &name, location_t loc)
+{
+  SymbolPtr sym = scope.lookup (name);
+  if (sym == NULL)
+    {
+      error_at (loc, "type '%s' not declared in the current scope",
+		name.c_str ());
+    }
+  else if (sym->get_kind () != Tiny::TYPENAME)
+    {
+      error_at (loc, "name '%s' is not a type", name.c_str ());
+      sym = SymbolPtr();
+    }
+  return sym;
 }
 
 SymbolPtr
@@ -634,6 +728,11 @@ Parser::query_variable (const std::string &name, location_t loc)
     {
       error_at (loc, "variable '%s' not declared in the current scope",
 		name.c_str ());
+    }
+  else if (sym->get_kind () != Tiny::VARIABLE)
+    {
+      error_at (loc, "name '%s' is not a variable", name.c_str ());
+      sym = SymbolPtr();
     }
   return sym;
 }

@@ -13,12 +13,25 @@
 namespace Tiny
 {
 
+enum /* class */ SymbolKind
+{
+  INVALID,
+  VARIABLE,
+  TYPENAME
+};
+
 struct Symbol
 {
 public:
-  Symbol (const std::string &name_) : name (name_), decl (error_mark_node)
+  Symbol (SymbolKind kind, const std::string &name_) : kind(kind), name (name_), decl (error_mark_node)
   {
     gcc_assert (name.size () > 0);
+  }
+
+  SymbolKind
+  get_kind () const
+  {
+    return kind;
   }
 
   std::string
@@ -30,7 +43,8 @@ public:
   void
   set_tree_decl (Tree decl_)
   {
-    gcc_assert (decl_.get_tree_code() == VAR_DECL);
+    gcc_assert ((kind == VARIABLE && decl_.get_tree_code() == VAR_DECL)
+                    || (kind == TYPENAME && decl_.get_tree_code() == TYPE_DECL));
     decl = decl_;
   }
 
@@ -41,6 +55,7 @@ public:
   }
 
 private:
+  SymbolKind kind;
   std::string name;
   Tree decl;
 };
