@@ -3,6 +3,7 @@
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
 #include "input.h"
 
 #include "tiny-token.h"
