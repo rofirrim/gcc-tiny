@@ -1639,12 +1639,12 @@ Parser::coerce_binary_arithmetic (const_TokenPtr tok, Tree *left, Tree *right)
       // We will coerce the integer into a float
       if (left_type == integer_type_node)
 	{
-	  *left = build_tree (CONVERT_EXPR, left->get_locus (), float_type_node,
+	  *left = build_tree (FLOAT_EXPR, left->get_locus (), float_type_node,
 			      left->get_tree ());
 	}
       else
 	{
-	  *right = build_tree (CONVERT_EXPR, right->get_locus (),
+	  *right = build_tree (FLOAT_EXPR, right->get_locus (),
 			       float_type_node, right->get_tree ());
 	}
       return float_type_node;
