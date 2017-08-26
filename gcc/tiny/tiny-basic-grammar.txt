@@ -58,7 +58,7 @@ write_statement -> "write" expression ";"
 
 % Simple 
 expression -> primary
-           |  unop op expression
+           |  unop expression
            |  expression binop expression
 
 primary -> identifier
